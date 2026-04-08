@@ -6,6 +6,11 @@ import os
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase
 
+from services.env_loader import load_project_env
+
+
+load_project_env()
+
 
 DATABASE_URL = os.environ.get(
     "DATABASE_URL",
