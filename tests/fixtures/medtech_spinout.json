@@ -1,0 +1,46 @@
+{
+  "startup_name": "NeuroPatch",
+  "one_line_pitch": "Non-invasive EEG-based cognitive monitoring patch for early Alzheimer's detection in primary care.",
+  "problem_statement": "Alzheimer's disease is typically diagnosed 7-10 years after neurological changes begin. Primary care physicians lack accessible, low-cost tools for early cognitive screening. Existing diagnostics require specialist referrals and expensive imaging.",
+  "proposed_solution": "A wearable EEG patch worn for 30 minutes during a routine GP visit. Our proprietary signal processing algorithm identifies early-stage biomarkers associated with cognitive decline. Integrates with EHR systems via HL7 FHIR API.",
+  "target_market": "Primary care physicians in the US and UK. Target is 150,000 GP practices. Broader addressable market includes neurology clinics and memory care centres.",
+  "industry_vertical": "Medical Device / Digital Health / Neurology",
+  "business_model": "Device lease model: $200/month per practice includes device, disposable patches, and software platform. Reimbursement pathway via CPT code 95999 (EEG analysis).",
+  "traction_summary": "NHS pilot with 3 GP practices in Manchester. 47 patient assessments completed. 91% clinician satisfaction. Regulatory pre-submission meeting with MHRA completed. NIH SBIR Phase I award of $250,000 received.",
+  "competitive_landscape": "Alzheimer's Research UK reports no FDA/MHRA-cleared EEG-based screening device currently in GP settings. Nearest competitors are specialist neuroimaging (PET/MRI) and blood biomarker tests (Lumipulse, not yet widely reimbursed).",
+  "technical_status": "CE Mark application submitted. FDA Breakthrough Device Designation application in preparation. Clinical algorithm validated on 340-patient dataset (90% sensitivity, 87% specificity). EHR integration built on FHIR R4.",
+  "stage": "pilot",
+  "supporting_documents": [
+    "https://neuropatch.io/clinical-validation-paper-preprint.pdf",
+    "NIH SBIR Phase I award notification"
+  ],
+  "team_members": [
+    {
+      "name": "Dr. Sarah Whitfield",
+      "role": "Co-Founder & CEO",
+      "resume_text": "MD, PhD Neuroscience from UCL. 12 years in academic neurology research. Former NIHR Research Fellow. Commercialised one prior medical device (licensed to Medtronic in 2019). Board member of two digital health nonprofits.",
+      "linkedin_summary": "Neurologist and entrepreneur. Founder of NeuroPatch. Previously licensed a neurostimulation device to Medtronic. Focused on making neurology tools accessible in primary care.",
+      "domain_expertise": "Neurology, clinical trials, medical device commercialisation",
+      "startup_experience": "One prior device licensing deal (Medtronic, 2019)",
+      "commitment_level": "Full-time"
+    },
+    {
+      "name": "Amir Hassan",
+      "role": "Co-Founder & CTO",
+      "resume_text": "MSc Biomedical Engineering, Imperial College London. 8 years at Philips Healthcare (signal processing, EEG device firmware). Led firmware team for 3 CE-marked devices. Expert in HL7 FHIR, IEC 62304 medical software standards.",
+      "linkedin_summary": "Biomedical engineer. 8 years at Philips Healthcare. Building NeuroPatch's device and platform. Regulatory and signal processing specialist.",
+      "domain_expertise": "EEG signal processing, medical device firmware, regulatory compliance (CE, FDA)",
+      "startup_experience": "None (first startup, but deep industry experience)",
+      "commitment_level": "Full-time"
+    },
+    {
+      "name": "Dr. Priya Nair",
+      "role": "Chief Medical Officer",
+      "resume_text": "GP Principal with 15 years in primary care. NHS England GP advisor on digital health adoption. Co-investigator on the Manchester NHS pilot. MRCGP fellow.",
+      "linkedin_summary": "NHS GP and clinical advisor. Co-founder of NeuroPatch. Leading clinical validation and GP adoption strategy.",
+      "domain_expertise": "Primary care, NHS procurement, clinical validation",
+      "startup_experience": "None",
+      "commitment_level": "Part-time (2 days/week)"
+    }
+  ]
+}

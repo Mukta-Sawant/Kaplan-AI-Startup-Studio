@@ -1,0 +1,34 @@
+{
+  "startup_name": "CampusEats",
+  "one_line_pitch": "On-demand food delivery for university campuses, powered by student couriers.",
+  "problem_statement": "Students at large universities struggle to find fast, affordable meal options outside cafeteria hours. Existing delivery apps charge high fees and have slow campus delivery times due to unfamiliarity with campus layouts.",
+  "proposed_solution": "A mobile app exclusively for campus food delivery. Student couriers who know the campus get paid per delivery. Restaurants partner with us for campus-exclusive menus at lower margins.",
+  "target_market": "US university students aged 18-24. Focus on campuses with 10,000+ students. Estimated 300 target campuses.",
+  "industry_vertical": "Food delivery / Consumer mobile app",
+  "business_model": "Commission per order (15%) plus monthly restaurant partner fee ($99/month). No subscription for students.",
+  "traction_summary": "Pilot at University of Michigan: 200 orders in first month, 3 restaurant partners, 12 student couriers.",
+  "competitive_landscape": "DoorDash, Uber Eats, and Grubhub all operate on campuses but treat them as standard delivery zones. No campus-native competitor identified.",
+  "technical_status": "React Native app (iOS and Android) in beta. Backend on Firebase. Working payment integration via Stripe.",
+  "stage": "pilot",
+  "supporting_documents": ["https://campuseats.io/pilot-results-umich.pdf"],
+  "team_members": [
+    {
+      "name": "Jordan Kim",
+      "role": "Co-Founder & CEO",
+      "resume_text": "Junior at University of Michigan, studying Business Administration. Ran a campus t-shirt printing side business freshman year. No formal tech background.",
+      "linkedin_summary": "Student entrepreneur. Co-founder of CampusEats. Previously sold custom merch to fraternities.",
+      "domain_expertise": "Campus life, peer-to-peer commerce",
+      "startup_experience": "Campus merchandise business (informal)",
+      "commitment_level": "Full-time during summer, part-time during semester"
+    },
+    {
+      "name": "Priya Sharma",
+      "role": "Co-Founder & CTO",
+      "resume_text": "Senior at University of Michigan, Computer Science. Completed internships at a mid-sized SaaS company. Built two side projects. Firebase and React Native experience.",
+      "linkedin_summary": "CS student building CampusEats. Ex-intern at software companies. Passionate about mobile apps.",
+      "domain_expertise": "Mobile development, Firebase, consumer apps",
+      "startup_experience": "None (first startup)",
+      "commitment_level": "Full-time during summer, part-time during semester"
+    }
+  ]
+}

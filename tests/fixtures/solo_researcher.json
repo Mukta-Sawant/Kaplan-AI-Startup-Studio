@@ -1,0 +1,25 @@
+{
+  "startup_name": "ResearchLink",
+  "one_line_pitch": "AI-powered platform connecting academic researchers with industry R&D teams.",
+  "problem_statement": "Independent academic researchers struggle to commercialise their findings. Industry R&D teams lack visibility into early-stage academic work before it becomes publicly published.",
+  "proposed_solution": "A matchmaking platform that uses NLP to analyse research papers and match them with relevant corporate R&D departments, enabling early licensing and collaboration conversations.",
+  "target_market": "Life sciences, materials science, and deep tech researchers at US and EU universities. Estimated 120,000 active R&D-publishing academics annually.",
+  "industry_vertical": "Research commercialisation / Deep Tech",
+  "business_model": "SaaS subscription for corporate R&D teams ($500/month per team seat). Universities pay a platform fee for bulk researcher access.",
+  "traction_summary": null,
+  "competitive_landscape": "Existing tools like ResearchGate and Academia.edu focus on paper sharing, not commercialisation. No direct competitor addresses early-stage licensing facilitation.",
+  "technical_status": "Proof-of-concept NLP pipeline built in Python. No production infrastructure yet.",
+  "stage": "prototype",
+  "supporting_documents": null,
+  "team_members": [
+    {
+      "name": "Dr. Maya Osei",
+      "role": "Founder & CEO",
+      "resume_text": "PhD in Computational Biology from MIT. 8 years of academic research. Published 14 peer-reviewed papers. No prior startup or commercial experience. Adjunct lecturer at Boston University.",
+      "linkedin_summary": "Researcher turned entrepreneur. Passionate about bridging academia and industry. Building ResearchLink solo.",
+      "domain_expertise": "Computational biology, NLP, academic publishing",
+      "startup_experience": "None",
+      "commitment_level": "Part-time (20 hours/week) while maintaining academic position"
+    }
+  ]
+}
