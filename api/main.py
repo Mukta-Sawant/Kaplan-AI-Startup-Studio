@@ -16,6 +16,9 @@ from api.routes.health import router as health_router
 from api.routes.phase1 import router as phase1_router
 from api.routes.submissions import agent_runs_router, router as submissions_router
 from api.routes.upload import router as upload_router
+from services.env_loader import load_project_env
+
+load_project_env()
 
 logging.basicConfig(
     level=logging.INFO,

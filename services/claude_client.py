@@ -17,6 +17,9 @@ import os
 from typing import Any, Optional
 
 import httpx
+from services.env_loader import load_project_env
+
+load_project_env()
 
 logger = logging.getLogger(__name__)
 

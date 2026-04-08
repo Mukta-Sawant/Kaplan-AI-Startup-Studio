@@ -11,6 +11,7 @@ from logging.config import fileConfig
 from alembic import context
 from sqlalchemy import pool
 from sqlalchemy.ext.asyncio import async_engine_from_config
+from services.env_loader import load_project_env
 
 # Import all models so Alembic can detect them
 from models.db import Base  # noqa: F401
@@ -20,6 +21,8 @@ from models.phase_output import PhaseOutput  # noqa: F401
 from models.feedback_entry import FeedbackEntry  # noqa: F401
 
 config = context.config
+
+load_project_env()
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
