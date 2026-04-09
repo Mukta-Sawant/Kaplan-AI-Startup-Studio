@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { listSubmissions, runPhase1 } from "@/lib/api";
@@ -22,7 +22,7 @@ const STATUS_LABELS: Record<string, string> = {
   mentor_review_required: "Mentor Review Required",
 };
 
-export default function DashboardPage() {
+function DashboardContent() {
   const searchParams = useSearchParams();
   const highlight = searchParams.get("highlight");
 
@@ -149,5 +149,21 @@ export default function DashboardPage() {
         </div>
       )}
     </div>
+  );
+}
+
+function DashboardFallback() {
+  return (
+    <div className="flex justify-center py-20">
+      <Spinner className="text-brand-500 h-8 w-8" />
+    </div>
+  );
+}
+
+export default function DashboardPage() {
+  return (
+    <Suspense fallback={<DashboardFallback />}>
+      <DashboardContent />
+    </Suspense>
   );
 }
