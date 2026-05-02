@@ -6,8 +6,7 @@ import uuid
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import String, Float, ForeignKey, DateTime, Enum as SAEnum
-from sqlalchemy.dialects.postgresql import UUID, JSONB
+from sqlalchemy import DateTime, Enum as SAEnum, Float, ForeignKey, JSON, String, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
@@ -20,10 +19,10 @@ class AgentRun(Base):
     __tablename__ = "agent_runs"
 
     id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+        Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
     submission_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
+        Uuid(as_uuid=True),
         ForeignKey("submissions.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
@@ -33,8 +32,8 @@ class AgentRun(Base):
     version: Mapped[str] = mapped_column(String(50), nullable=False, default="1.0.0")
     input_hash: Mapped[str] = mapped_column(String(64), nullable=False)
     system_prompt_version: Mapped[str] = mapped_column(String(50), nullable=False)
-    input_payload: Mapped[dict] = mapped_column(JSONB, nullable=False)
-    output_json: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
+    input_payload: Mapped[dict] = mapped_column(JSON, nullable=False)
+    output_json: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
     coherence_score: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     confidence_level: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     run_status: Mapped[str] = mapped_column(

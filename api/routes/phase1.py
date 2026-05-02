@@ -156,7 +156,9 @@ async def get_dossier(
     hoster: Hoster = Depends(get_hoster),
 ) -> dict:
     """Fetch the most recent Phase 1 qualification dossier for a submission."""
-    phase_output = await hoster.get_latest_dossier(submission_id, db)
+    phase_output = await hoster.get_latest_dossier(
+        submission_id, db, phase_name="phase1"
+    )
     if not phase_output:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

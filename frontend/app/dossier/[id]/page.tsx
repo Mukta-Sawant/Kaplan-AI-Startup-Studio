@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { getDossier, submitFeedback } from "@/lib/api";
+import { getDossier, runPhase2, submitFeedback } from "@/lib/api";
 import type { Dossier, FeedbackSource, RerunScope } from "@/lib/types";
 import { DossierCard } from "@/components/dossier-card";
 import { Spinner } from "@/components/ui/spinner";
@@ -26,6 +26,11 @@ export default function DossierPage() {
   const [feedbackSuccess, setFeedbackSuccess] = useState(false);
   const [feedbackError, setFeedbackError] = useState<string | null>(null);
 
+  // Phase 2
+  const [runningPhase2, setRunningPhase2] = useState(false);
+  const [phase2Error, setPhase2Error] = useState<string | null>(null);
+  const [phase2Done, setPhase2Done] = useState(false);
+
   useEffect(() => {
     getDossier(submissionId)
       .then(setDossier)
@@ -33,7 +38,20 @@ export default function DossierPage() {
       .finally(() => setLoading(false));
   }, [submissionId]);
 
-  async function handleFeedback(e: React.FormEvent) {
+  async function handleRunPhase2() {
+    setRunningPhase2(true);
+    setPhase2Error(null);
+    try {
+      await runPhase2(submissionId);
+      setPhase2Done(true);
+    } catch (e) {
+      setPhase2Error(e instanceof Error ? e.message : "Phase 2 run failed.");
+    } finally {
+      setRunningPhase2(false);
+    }
+  }
+
+  async function handleFeedback(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!feedbackText.trim()) return;
 
@@ -94,6 +112,37 @@ export default function DossierPage() {
       </div>
 
       <DossierCard dossier={dossier} />
+
+      {/* Phase 2 launch */}
+      <div className="mt-8 bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
+        <h2 className="text-lg font-semibold mb-1">Stage One Analysis — Phase 2</h2>
+        <p className="text-sm text-gray-500 mb-4">
+          Run 6 parallel agents: market discovery, competitive intelligence, risk register, go-to-market strategy, and financial model.
+        </p>
+
+        {phase2Error && <Alert variant="error" className="mb-3">{phase2Error}</Alert>}
+
+        {phase2Done ? (
+          <div className="flex items-center gap-4">
+            <Alert variant="success">Phase 2 complete.</Alert>
+            <Link
+              href={`/phase2/${submissionId}`}
+              className="text-sm bg-purple-600 text-white px-5 py-2 rounded-lg hover:bg-purple-700 transition-colors"
+            >
+              View Phase 2 Results →
+            </Link>
+          </div>
+        ) : (
+          <button
+            onClick={handleRunPhase2}
+            disabled={runningPhase2}
+            className="flex items-center gap-2 bg-purple-600 text-white px-6 py-2 rounded-lg text-sm font-medium hover:bg-purple-700 disabled:opacity-60 transition-colors"
+          >
+            {runningPhase2 && <Spinner className="text-white h-4 w-4" />}
+            {runningPhase2 ? "Running Phase 2 (5 agents in parallel)…" : "Run Phase 2"}
+          </button>
+        )}
+      </div>
 
       {/* Feedback form */}
       <div className="mt-10 bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">

@@ -6,8 +6,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Optional
 
-from sqlalchemy import String, Text, DateTime, Enum as SAEnum
-from sqlalchemy.dialects.postgresql import UUID, JSONB
+from sqlalchemy import DateTime, Enum as SAEnum, JSON, String, Text, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
@@ -19,6 +18,7 @@ class SubmissionStatus(str):
     CLARIFICATION_NEEDED = "clarification_needed"
     PHASE1_COMPLETE = "phase1_complete"
     MENTOR_REVIEW_REQUIRED = "mentor_review_required"
+    PHASE2_COMPLETE = "phase2_complete"
 
 
 class Submission(Base):
@@ -27,7 +27,7 @@ class Submission(Base):
     __tablename__ = "submissions"
 
     id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+        Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
     startup_name: Mapped[str] = mapped_column(String(255), nullable=False)
     one_line_pitch: Mapped[str] = mapped_column(String(500), nullable=False)
@@ -46,14 +46,15 @@ class Submission(Base):
         ),
         nullable=False,
     )
-    supporting_documents: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
-    team_members: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    supporting_documents: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    team_members: Mapped[dict] = mapped_column(JSON, nullable=False)
     status: Mapped[str] = mapped_column(
         SAEnum(
             "submitted",
             "clarification_needed",
             "phase1_complete",
             "mentor_review_required",
+            "phase2_complete",
             name="submission_status_enum",
         ),
         nullable=False,

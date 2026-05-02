@@ -3,7 +3,8 @@ Database engine and session factory using SQLAlchemy 2.x async.
 """
 
 import os
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
+
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
 
 from services.env_loader import load_project_env
@@ -12,19 +13,20 @@ from services.env_loader import load_project_env
 load_project_env()
 
 
-DATABASE_URL = os.environ.get(
-    "DATABASE_URL",
-    "postgresql+asyncpg://postgres:postgres@localhost:5432/ki_agentic",
-)
+DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite+aiosqlite:///./ki_agentic.db")
+IS_SQLITE = DATABASE_URL.startswith("sqlite+aiosqlite")
 
+engine_kwargs = {"echo": False}
+if IS_SQLITE:
+    engine_kwargs["connect_args"] = {"check_same_thread": False}
+else:
+    engine_kwargs.update(
+        pool_pre_ping=True,
+        pool_size=10,
+        max_overflow=20,
+    )
 
-engine = create_async_engine(
-    DATABASE_URL,
-    echo=False,
-    pool_pre_ping=True,
-    pool_size=10,
-    max_overflow=20,
-)
+engine = create_async_engine(DATABASE_URL, **engine_kwargs)
 
 AsyncSessionLocal = async_sessionmaker(
     bind=engine,

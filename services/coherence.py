@@ -26,7 +26,7 @@ def compute_coherence(output: dict[str, Any], agent_name: str) -> float:
 
     Args:
         output:     The parsed JSON dict returned by the agent.
-        agent_name: "eval" or "team" — selects the scoring profile.
+        agent_name: agent identifier string — selects the scoring profile.
 
     Returns:
         Float in [0.0, 1.0].  Higher is better.
@@ -37,6 +37,18 @@ def compute_coherence(output: dict[str, Any], agent_name: str) -> float:
         checks = _eval_checks(output)
     elif agent_name == "team":
         checks = _team_checks(output)
+    elif agent_name == "interact":
+        checks = _interact_checks(output)
+    elif agent_name == "discovery":
+        checks = _discovery_checks(output)
+    elif agent_name == "comp":
+        checks = _comp_checks(output)
+    elif agent_name == "risk":
+        checks = _risk_checks(output)
+    elif agent_name == "gtm":
+        checks = _gtm_checks(output)
+    elif agent_name == "fin":
+        checks = _fin_checks(output)
     else:
         logger.warning("Unknown agent_name %r; returning neutral coherence.", agent_name)
         return 0.5
@@ -122,5 +134,201 @@ def _team_checks(o: dict[str, Any]) -> list[bool]:
 
     # 6. identified_gaps is a list
     checks.append(isinstance(o.get("identified_gaps"), list))
+
+    return checks
+
+
+# ---------------------------------------------------------------------------
+# INTERACT checks
+# ---------------------------------------------------------------------------
+
+def _interact_checks(o: dict[str, Any]) -> list[bool]:
+    checks: list[bool] = []
+
+    required = {
+        "clarification_questions", "priority_topics", "information_gaps",
+        "recommended_follow_up_areas", "interaction_summary", "confidence_level",
+    }
+    checks.append(required.issubset(o.keys()))
+
+    questions = o.get("clarification_questions", [])
+    checks.append(isinstance(questions, list) and len(questions) >= 1)
+
+    conf = o.get("confidence_level")
+    checks.append(isinstance(conf, float) and 0.0 <= conf <= 1.0)
+
+    summary = o.get("interaction_summary", "")
+    checks.append(isinstance(summary, str) and len(summary.strip()) >= 10)
+
+    checks.append(isinstance(o.get("priority_topics"), list))
+    checks.append(isinstance(o.get("information_gaps"), list))
+
+    return checks
+
+
+# ---------------------------------------------------------------------------
+# DISCOVERY checks
+# ---------------------------------------------------------------------------
+
+def _discovery_checks(o: dict[str, Any]) -> list[bool]:
+    checks: list[bool] = []
+
+    required = {
+        "total_addressable_market", "serviceable_addressable_market",
+        "serviceable_obtainable_market", "market_growth_rate",
+        "key_market_trends", "regulatory_landscape",
+        "industry_maturity", "discovery_summary", "confidence_level",
+    }
+    checks.append(required.issubset(o.keys()))
+
+    tam = o.get("total_addressable_market", "")
+    checks.append(isinstance(tam, str) and len(tam.strip()) >= 3)
+
+    conf = o.get("confidence_level")
+    checks.append(isinstance(conf, float) and 0.0 <= conf <= 1.0)
+
+    checks.append(isinstance(o.get("key_market_trends"), list))
+    checks.append(isinstance(o.get("market_segments"), list))
+
+    summary = o.get("discovery_summary", "")
+    checks.append(isinstance(summary, str) and len(summary.strip()) >= 10)
+
+    maturity_values = {"emerging", "growth", "mature", "declining"}
+    checks.append(o.get("industry_maturity", "").lower() in maturity_values)
+
+    return checks
+
+
+# ---------------------------------------------------------------------------
+# COMP checks
+# ---------------------------------------------------------------------------
+
+def _comp_checks(o: dict[str, Any]) -> list[bool]:
+    checks: list[bool] = []
+
+    required = {
+        "direct_competitors", "indirect_competitors",
+        "competitive_advantages", "moat_assessment",
+        "competitive_positioning", "overall_competitive_score",
+        "comp_summary", "confidence_level",
+    }
+    checks.append(required.issubset(o.keys()))
+
+    score = o.get("overall_competitive_score")
+    checks.append(isinstance(score, (int, float)) and 1 <= score <= 10)
+
+    conf = o.get("confidence_level")
+    checks.append(isinstance(conf, float) and 0.0 <= conf <= 1.0)
+
+    checks.append(isinstance(o.get("direct_competitors"), list))
+    checks.append(isinstance(o.get("indirect_competitors"), list))
+
+    moat = o.get("moat_assessment", "")
+    checks.append(isinstance(moat, str) and len(moat.strip()) >= 10)
+
+    summary = o.get("comp_summary", "")
+    checks.append(isinstance(summary, str) and len(summary.strip()) >= 10)
+
+    return checks
+
+
+# ---------------------------------------------------------------------------
+# RISK checks
+# ---------------------------------------------------------------------------
+
+def _risk_checks(o: dict[str, Any]) -> list[bool]:
+    checks: list[bool] = []
+
+    required = {
+        "risk_register", "overall_risk_score", "critical_risks",
+        "risk_mitigation_summary", "go_no_go_recommendation", "confidence_level",
+    }
+    checks.append(required.issubset(o.keys()))
+
+    risk_score = o.get("overall_risk_score")
+    checks.append(isinstance(risk_score, (int, float)) and 1 <= risk_score <= 10)
+
+    conf = o.get("confidence_level")
+    checks.append(isinstance(conf, float) and 0.0 <= conf <= 1.0)
+
+    register = o.get("risk_register", [])
+    checks.append(isinstance(register, list))
+
+    valid_recommendations = {
+        "conditional_go", "proceed_with_caution", "high_risk_proceed", "do_not_proceed"
+    }
+    checks.append(o.get("go_no_go_recommendation", "") in valid_recommendations)
+
+    summary = o.get("risk_mitigation_summary", "")
+    checks.append(isinstance(summary, str) and len(summary.strip()) >= 10)
+
+    return checks
+
+
+# ---------------------------------------------------------------------------
+# GTM checks
+# ---------------------------------------------------------------------------
+
+def _gtm_checks(o: dict[str, Any]) -> list[bool]:
+    checks: list[bool] = []
+
+    required = {
+        "primary_target_segments", "ideal_customer_profile",
+        "value_proposition", "pricing_model", "pricing_strategy",
+        "marketing_channels", "sales_strategy", "launch_timeline",
+        "gtm_summary", "confidence_level",
+    }
+    checks.append(required.issubset(o.keys()))
+
+    conf = o.get("confidence_level")
+    checks.append(isinstance(conf, float) and 0.0 <= conf <= 1.0)
+
+    checks.append(isinstance(o.get("primary_target_segments"), list) and len(o.get("primary_target_segments", [])) > 0)
+    checks.append(isinstance(o.get("marketing_channels"), list))
+
+    icp = o.get("ideal_customer_profile", "")
+    checks.append(isinstance(icp, str) and len(icp.strip()) >= 10)
+
+    summary = o.get("gtm_summary", "")
+    checks.append(isinstance(summary, str) and len(summary.strip()) >= 10)
+
+    checks.append(isinstance(o.get("key_partnerships"), list))
+    checks.append(isinstance(o.get("gtm_risk_factors"), list))
+
+    return checks
+
+
+# ---------------------------------------------------------------------------
+# FIN checks
+# ---------------------------------------------------------------------------
+
+def _fin_checks(o: dict[str, Any]) -> list[bool]:
+    checks: list[bool] = []
+
+    required = {
+        "revenue_projections", "burn_rate_monthly", "runway_months",
+        "funding_ask", "use_of_funds", "unit_economics",
+        "investment_readiness_score", "fin_summary", "confidence_level",
+    }
+    checks.append(required.issubset(o.keys()))
+
+    inv_score = o.get("investment_readiness_score")
+    checks.append(isinstance(inv_score, (int, float)) and 1 <= inv_score <= 10)
+
+    conf = o.get("confidence_level")
+    checks.append(isinstance(conf, float) and 0.0 <= conf <= 1.0)
+
+    projections = o.get("revenue_projections", [])
+    checks.append(isinstance(projections, list) and len(projections) >= 1)
+
+    unit_econ = o.get("unit_economics", {})
+    unit_keys = {"customer_acquisition_cost", "lifetime_value", "ltv_cac_ratio", "payback_period_months", "gross_margin_percent"}
+    checks.append(isinstance(unit_econ, dict) and unit_keys.issubset(unit_econ.keys()))
+
+    runway = o.get("runway_months")
+    checks.append(isinstance(runway, int) and runway >= 0)
+
+    summary = o.get("fin_summary", "")
+    checks.append(isinstance(summary, str) and len(summary.strip()) >= 10)
 
     return checks

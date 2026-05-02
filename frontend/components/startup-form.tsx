@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { z } from "zod";
+import { DEMO_SUBMISSIONS, DEMO_SUBMISSION_OPTIONS } from "@/lib/demo-submissions";
 import { submissionSchema, type SubmissionFormValues, type TeamMemberFormValues } from "@/lib/validators";
 import { createSubmission } from "@/lib/api";
 import { TeamMembersForm } from "./team-members-form";
@@ -79,6 +80,7 @@ export function StartupForm() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<FormErrors>({});
+  const [selectedDemo, setSelectedDemo] = useState<(typeof DEMO_SUBMISSION_OPTIONS)[number]["value"]>("campuseats");
 
   const [form, setForm] = useState<SubmissionFormValues>({
     startup_name: "",
@@ -102,6 +104,12 @@ export function StartupForm() {
   ) {
     setForm((prev) => ({ ...prev, [key]: value }));
     setFieldErrors((prev) => ({ ...prev, [key]: undefined }));
+  }
+
+  function loadDemoSubmission() {
+    setForm(DEMO_SUBMISSIONS[selectedDemo]);
+    setFieldErrors({});
+    setError(null);
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -134,6 +142,42 @@ export function StartupForm() {
   return (
     <form onSubmit={handleSubmit} className="space-y-10">
       {error && <Alert variant="error">{error}</Alert>}
+
+      <section className="rounded-2xl border border-brand-100 bg-brand-50/60 p-5">
+        <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+          <div>
+            <h2 className="text-lg font-semibold text-slate-900">Quick Demo Fill</h2>
+            <p className="mt-1 text-sm text-slate-600">
+              Load a built-in test case to populate every field instantly.
+            </p>
+          </div>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">
+                Demo Submission
+              </label>
+              <select
+                value={selectedDemo}
+                onChange={(e) => setSelectedDemo(e.target.value as typeof selectedDemo)}
+                className="w-full min-w-56 rounded-lg border border-brand-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+              >
+                {DEMO_SUBMISSION_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <button
+              type="button"
+              onClick={loadDemoSubmission}
+              className="rounded-xl bg-brand-500 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-600"
+            >
+              Load Demo Data
+            </button>
+          </div>
+        </div>
+      </section>
 
       {/* Section 1: Startup overview */}
       <section>
