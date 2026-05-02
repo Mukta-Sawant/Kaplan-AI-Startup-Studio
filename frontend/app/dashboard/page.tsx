@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { listSubmissions, runPhase1 } from "@/lib/api";
+import { listSubmissions, runPhase1, runPhase2 } from "@/lib/api";
 import type { SubmissionListItem } from "@/lib/types";
 import { Spinner } from "@/components/ui/spinner";
 import { Alert } from "@/components/ui/alert";
@@ -13,6 +13,7 @@ const STATUS_STYLES: Record<string, string> = {
   clarification_needed: "bg-blue-100 text-blue-700",
   phase1_complete: "bg-green-100 text-green-700",
   mentor_review_required: "bg-amber-100 text-amber-700",
+  phase2_complete: "bg-purple-100 text-purple-700",
 };
 
 const STATUS_LABELS: Record<string, string> = {
@@ -20,6 +21,7 @@ const STATUS_LABELS: Record<string, string> = {
   clarification_needed: "Clarification Needed",
   phase1_complete: "Phase 1 Complete",
   mentor_review_required: "Mentor Review Required",
+  phase2_complete: "Phase 2 Complete",
 };
 
 function DashboardContent() {
@@ -30,6 +32,7 @@ function DashboardContent() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [running, setRunning] = useState<string | null>(null);
+  const [runningPhase, setRunningPhase] = useState<"phase1" | "phase2" | null>(null);
   const [runError, setRunError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -41,16 +44,33 @@ function DashboardContent() {
 
   async function handleRunPhase1(submissionId: string) {
     setRunning(submissionId);
+    setRunningPhase("phase1");
     setRunError(null);
     try {
       await runPhase1(submissionId);
-      // Refresh the list
       const updated = await listSubmissions();
       setSubmissions(updated);
     } catch (e) {
       setRunError(e instanceof Error ? e.message : "Phase 1 run failed.");
     } finally {
       setRunning(null);
+      setRunningPhase(null);
+    }
+  }
+
+  async function handleRunPhase2(submissionId: string) {
+    setRunning(submissionId);
+    setRunningPhase("phase2");
+    setRunError(null);
+    try {
+      await runPhase2(submissionId);
+      const updated = await listSubmissions();
+      setSubmissions(updated);
+    } catch (e) {
+      setRunError(e instanceof Error ? e.message : "Phase 2 run failed.");
+    } finally {
+      setRunning(null);
+      setRunningPhase(null);
     }
   }
 
@@ -114,33 +134,56 @@ function DashboardContent() {
                   </div>
                 </div>
 
-                <div className="flex gap-2 flex-shrink-0">
+                <div className="flex gap-2 flex-shrink-0 flex-wrap justify-end">
                   {sub.status === "submitted" && (
                     <button
                       onClick={() => handleRunPhase1(sub.id)}
                       disabled={running === sub.id}
                       className="flex items-center gap-1.5 text-sm bg-brand-500 text-white px-4 py-2 rounded-lg hover:bg-brand-600 disabled:opacity-60 transition-colors"
                     >
-                      {running === sub.id ? (
-                        <>
-                          <Spinner className="text-white h-4 w-4" />
-                          Running...
-                        </>
-                      ) : (
-                        "Run Phase 1"
-                      )}
+                      {running === sub.id && runningPhase === "phase1" ? (
+                        <><Spinner className="text-white h-4 w-4" />Running P1...</>
+                      ) : "Run Phase 1"}
                     </button>
                   )}
 
                   {(sub.status === "phase1_complete" ||
                     sub.status === "mentor_review_required" ||
                     sub.status === "clarification_needed") && (
-                    <Link
-                      href={`/dossier/${sub.id}`}
-                      className="text-sm border border-brand-500 text-brand-600 px-4 py-2 rounded-lg hover:bg-brand-50 transition-colors"
-                    >
-                      View Dossier
-                    </Link>
+                    <>
+                      <Link
+                        href={`/dossier/${sub.id}`}
+                        className="text-sm border border-brand-500 text-brand-600 px-4 py-2 rounded-lg hover:bg-brand-50 transition-colors"
+                      >
+                        View Dossier
+                      </Link>
+                      <button
+                        onClick={() => handleRunPhase2(sub.id)}
+                        disabled={running === sub.id}
+                        className="flex items-center gap-1.5 text-sm bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 disabled:opacity-60 transition-colors"
+                      >
+                        {running === sub.id && runningPhase === "phase2" ? (
+                          <><Spinner className="text-white h-4 w-4" />Running P2...</>
+                        ) : "Run Phase 2"}
+                      </button>
+                    </>
+                  )}
+
+                  {sub.status === "phase2_complete" && (
+                    <>
+                      <Link
+                        href={`/dossier/${sub.id}`}
+                        className="text-sm border border-gray-300 text-gray-600 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors"
+                      >
+                        Phase 1
+                      </Link>
+                      <Link
+                        href={`/phase2/${sub.id}`}
+                        className="text-sm bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors"
+                      >
+                        View Phase 2
+                      </Link>
+                    </>
                   )}
                 </div>
               </div>

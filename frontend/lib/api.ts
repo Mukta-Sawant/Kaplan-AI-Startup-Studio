@@ -10,6 +10,8 @@ import type {
   Dossier,
   FeedbackCreate,
   FeedbackResponse,
+  Phase2Output,
+  Phase2Summary,
   SubmissionCreate,
   SubmissionListItem,
   SubmissionResponse,
@@ -156,6 +158,28 @@ export async function uploadResume(
     throw new Error(detail);
   }
   return res.json();
+}
+
+// ---------------------------------------------------------------------------
+// Phase 2 endpoints
+// ---------------------------------------------------------------------------
+
+export async function runPhase2(submissionId: string): Promise<{
+  message: string;
+  submission_id: string;
+  phase_output_id: string;
+  phase2_status: string;
+  agent_statuses: Record<string, string>;
+}> {
+  return apiFetch(`/phase2/run/${submissionId}`, { method: "POST" });
+}
+
+export async function getPhase2Output(submissionId: string): Promise<Phase2Output> {
+  return apiFetch<Phase2Output>(`/phase2/output/${submissionId}`);
+}
+
+export async function getPhase2Summary(submissionId: string): Promise<Phase2Summary> {
+  return apiFetch<Phase2Summary>(`/phase2/summary/${submissionId}`);
 }
 
 // ---------------------------------------------------------------------------

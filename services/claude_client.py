@@ -251,3 +251,9 @@ def make_team_client() -> ClaudeClient:
     """Factory for the TEAM agent's Bedrock client."""
     model = os.environ.get("CLAUDE_TEAM_MODEL") or os.environ.get("BEDROCK_MODEL_ID")
     return ClaudeClient(model=model)
+
+
+def make_phase2_client() -> ClaudeClient:
+    """Shared factory for all Phase 2 agents (INTERACT, DISCOVERY, COMP, RISK, GTM, FIN)."""
+    model = os.environ.get("CLAUDE_PHASE2_MODEL") or os.environ.get("BEDROCK_MODEL_ID")
+    return ClaudeClient(model=model)

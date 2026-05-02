@@ -4,6 +4,7 @@ FastAPI application entry point.
 Configures CORS, mounts all routers, and provides structured error handling.
 """
 
+from contextlib import asynccontextmanager
 import logging
 import os
 
@@ -14,8 +15,10 @@ from fastapi.responses import JSONResponse
 from api.routes.feedback import router as feedback_router
 from api.routes.health import router as health_router
 from api.routes.phase1 import router as phase1_router
+from api.routes.phase2 import router as phase2_router
 from api.routes.submissions import agent_runs_router, router as submissions_router
 from api.routes.upload import router as upload_router
+from models.db import IS_SQLITE, Base, engine
 from services.env_loader import load_project_env
 
 load_project_env()
@@ -30,16 +33,28 @@ logger = logging.getLogger(__name__)
 # Application factory
 # ---------------------------------------------------------------------------
 
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    if IS_SQLITE:
+        async with engine.begin() as connection:
+            await connection.run_sync(Base.metadata.create_all)
+        logger.info("SQLite schema ready for local development.")
+    yield
+
 app = FastAPI(
     title="KI Agentic Qualification System",
     description=(
         "Agentic startup qualification platform powered by Anthropic Claude. "
         "Phase 1 runs a parallel EVAL and TEAM agent assessment, producing a "
-        "Final Qualification Dossier for human mentor review."
+        "Final Qualification Dossier for human mentor review. "
+        "Phase 2 runs a parallel 6-agent Stage One Analysis: INTERACT, DISCOVERY, "
+        "COMP, RISK, GTM (parallel), then FIN with GTM context."
     ),
-    version="1.0.0",
+    version="2.0.0",
     docs_url="/docs",
     redoc_url="/redoc",
+    lifespan=lifespan,
 )
 
 # ---------------------------------------------------------------------------
@@ -66,6 +81,7 @@ app.include_router(health_router, prefix=API_PREFIX)
 app.include_router(submissions_router, prefix=API_PREFIX)
 app.include_router(agent_runs_router, prefix=API_PREFIX)
 app.include_router(phase1_router, prefix=API_PREFIX)
+app.include_router(phase2_router, prefix=API_PREFIX)
 app.include_router(feedback_router, prefix=API_PREFIX)
 app.include_router(upload_router, prefix=API_PREFIX)
 

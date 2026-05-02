@@ -6,8 +6,7 @@ import uuid
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import ForeignKey, Boolean, String, DateTime
-from sqlalchemy.dialects.postgresql import UUID, JSONB
+from sqlalchemy import Boolean, DateTime, ForeignKey, JSON, String, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
@@ -20,16 +19,16 @@ class PhaseOutput(Base):
     __tablename__ = "phase_outputs"
 
     id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+        Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
     submission_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
+        Uuid(as_uuid=True),
         ForeignKey("submissions.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
     phase_name: Mapped[str] = mapped_column(String(100), nullable=False)
-    merged_output: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    merged_output: Mapped[dict] = mapped_column(JSON, nullable=False)
     mentor_review_required: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False
     )

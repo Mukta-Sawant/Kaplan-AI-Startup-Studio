@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from models.db import AsyncSessionLocal
 from orchestrator.feedback_loop import FeedbackLoop
 from orchestrator.hoster import Hoster
+from orchestrator.phase2_pipeline import Phase2Pipeline
 from orchestrator.pipeline import Phase1Pipeline
 
 
@@ -34,6 +35,11 @@ def get_pipeline() -> Phase1Pipeline:
 def get_hoster() -> Hoster:
     """Return a shared Hoster instance."""
     return Hoster()
+
+
+def get_phase2_pipeline() -> Phase2Pipeline:
+    """Return a shared Phase2Pipeline instance."""
+    return Phase2Pipeline()
 
 
 def get_feedback_loop() -> FeedbackLoop:
