@@ -30,8 +30,12 @@ logger = logging.getLogger(__name__)
 DEFAULT_MAX_TOKENS = 4096
 PHASE3_MAX_TOKENS = 8192
 PHASE4_MAX_TOKENS = 16384
+DECKS_MAX_TOKENS = 8192
+VC_MAX_TOKENS = 4096
 DEFAULT_TIMEOUT_SECONDS = 180
+PHASE4_TIMEOUT_SECONDS = 420
 MAX_RETRIES = 3
+PHASE4_MAX_RETRIES = 2
 RETRY_BACKOFF_BASE = 2.0  # seconds
 
 
@@ -136,8 +140,14 @@ class ClaudeClient:
             except (httpx.TimeoutException, httpx.NetworkError) as exc:
                 wait = RETRY_BACKOFF_BASE ** attempt
                 logger.warning(
-                    "Network error on attempt %d: %s. Waiting %.1fs.",
-                    attempt, exc, wait,
+                    "Bedrock transport error on attempt %d/%d for model=%s "
+                    "(%s: %r). Waiting %.1fs before retry.",
+                    attempt,
+                    self.max_retries,
+                    self.model,
+                    type(exc).__name__,
+                    exc,
+                    wait,
                 )
                 last_exc = exc
                 await asyncio.sleep(wait)
@@ -181,11 +191,23 @@ class ClaudeClient:
         }
 
         logger.info(
-            "Bedrock POST %s | system_len=%d user_len=%d",
-            url, len(system), len(user_content),
+            "Bedrock POST %s | model=%s system_len=%d user_len=%d max_tokens=%d timeout=%.1fs",
+            url,
+            self.model,
+            len(system),
+            len(user_content),
+            self.max_tokens,
+            self.timeout,
         )
 
-        async with httpx.AsyncClient(timeout=self.timeout) as client:
+        timeout = httpx.Timeout(
+            connect=min(self.timeout, 30.0),
+            read=self.timeout,
+            write=min(self.timeout, 60.0),
+            pool=min(self.timeout, 30.0),
+        )
+
+        async with httpx.AsyncClient(timeout=timeout) as client:
             response = await client.post(
                 url,
                 json=payload,
@@ -270,4 +292,45 @@ def make_phase3_client() -> ClaudeClient:
 def make_phase4_client() -> ClaudeClient:
     """Factory for Phase 4 agents (DECKS, VC) — needs larger output window."""
     model = os.environ.get("CLAUDE_PHASE4_MODEL") or os.environ.get("BEDROCK_MODEL_ID")
-    return ClaudeClient(model=model, max_tokens=PHASE4_MAX_TOKENS)
+    timeout = float(
+        os.environ.get("CLAUDE_PHASE4_TIMEOUT_SECONDS", PHASE4_TIMEOUT_SECONDS)
+    )
+    retries = int(os.environ.get("CLAUDE_PHASE4_MAX_RETRIES", PHASE4_MAX_RETRIES))
+    return ClaudeClient(
+        model=model,
+        max_tokens=PHASE4_MAX_TOKENS,
+        timeout=timeout,
+        max_retries=retries,
+    )
+
+
+def make_decks_client() -> ClaudeClient:
+    """Factory for the DECKS agent with a tighter token budget."""
+    model = os.environ.get("CLAUDE_PHASE4_MODEL") or os.environ.get("BEDROCK_MODEL_ID")
+    timeout = float(
+        os.environ.get("CLAUDE_PHASE4_TIMEOUT_SECONDS", PHASE4_TIMEOUT_SECONDS)
+    )
+    max_tokens = int(os.environ.get("CLAUDE_DECKS_MAX_TOKENS", DECKS_MAX_TOKENS))
+    retries = int(os.environ.get("CLAUDE_PHASE4_MAX_RETRIES", PHASE4_MAX_RETRIES))
+    return ClaudeClient(
+        model=model,
+        max_tokens=max_tokens,
+        timeout=timeout,
+        max_retries=retries,
+    )
+
+
+def make_vc_client() -> ClaudeClient:
+    """Factory for the VC agent with a tighter token budget."""
+    model = os.environ.get("CLAUDE_PHASE4_MODEL") or os.environ.get("BEDROCK_MODEL_ID")
+    timeout = float(
+        os.environ.get("CLAUDE_PHASE4_TIMEOUT_SECONDS", PHASE4_TIMEOUT_SECONDS)
+    )
+    max_tokens = int(os.environ.get("CLAUDE_VC_MAX_TOKENS", VC_MAX_TOKENS))
+    retries = int(os.environ.get("CLAUDE_PHASE4_MAX_RETRIES", PHASE4_MAX_RETRIES))
+    return ClaudeClient(
+        model=model,
+        max_tokens=max_tokens,
+        timeout=timeout,
+        max_retries=retries,
+    )

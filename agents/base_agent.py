@@ -1,26 +1,22 @@
 """
 Abstract base class for all qualification agents.
 
-Concrete agents (EvalAgent, TeamAgent) subclass BaseAgent and implement
-_build_prompt_context() to shape the user-facing prompt content.
-All infrastructure — model calling, JSON parsing, coherence scoring,
-and run persistence — is handled here.
+Concrete agents subclass BaseAgent and implement _build_prompt_context()
+to shape the user-facing prompt content. All infrastructure - model calling,
+JSON parsing, coherence scoring, and run persistence - is handled here.
 """
 
 from __future__ import annotations
 
-import json
 import logging
-import os
 from abc import ABC, abstractmethod
-from datetime import datetime, timezone
 from typing import Any, Optional
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models.agent_run import AgentRun
-from services.claude_client import ClaudeClient
+from services.claude_client import ClaudeClient, ClaudeClientError
 from services.coherence import compute_coherence
 from services.hashing import hash_input
 from services.prompt_loader import load_prompt, prompt_version
@@ -28,11 +24,17 @@ from services.prompt_loader import load_prompt, prompt_version
 logger = logging.getLogger(__name__)
 
 AGENT_VERSION = "1.0.0"
+MAX_ATTEMPTS = 3  # auto-retry only on schema/validation failures
+JSON_RETRY_HINT = (
+    "Your previous response was invalid or truncated JSON. "
+    "Retry with the same schema, but use shorter strings, fewer words, "
+    "and no markdown or code fences. Return exactly one complete JSON object."
+)
 
 
 class BaseAgent(ABC):
     """
-    Abstract agent that wraps a Claude model call with persistence, versioning,
+    Abstract agent that wraps a model call with persistence, versioning,
     coherence scoring, and structured JSON output parsing.
 
     Subclasses must implement:
@@ -41,17 +43,13 @@ class BaseAgent(ABC):
         - _build_prompt_context(submission_data, upstream_context) -> str
     """
 
-    agent_name: str  # e.g. "eval", "team"
-    prompt_filename: str  # e.g. "eval_system_prompt.txt"
+    agent_name: str
+    prompt_filename: str
 
     def __init__(self, client: ClaudeClient) -> None:
         self._client = client
         self._system_prompt = load_prompt(self.prompt_filename)
         self._prompt_ver = prompt_version(self.prompt_filename)
-
-    # ------------------------------------------------------------------
-    # Public interface
-    # ------------------------------------------------------------------
 
     async def run(
         self,
@@ -62,23 +60,6 @@ class BaseAgent(ABC):
     ) -> dict[str, Any]:
         """
         Execute the full agent lifecycle for a submission.
-
-        Steps:
-          1. Build structured user prompt content.
-          2. Call the Claude model.
-          3. Parse and validate the JSON response.
-          4. Compute a coherence score.
-          5. Persist the agent_run record.
-          6. Return the typed output dict.
-
-        Args:
-            submission_id:   UUID of the parent submission.
-            submission_data: Dict of submission fields relevant to this agent.
-            db:              Active async SQLAlchemy session.
-            upstream_context: Optional outputs from a prior agent pass.
-
-        Returns:
-            Parsed agent output dict.
         """
         input_payload = {
             "submission_id": str(submission_id),
@@ -86,37 +67,80 @@ class BaseAgent(ABC):
         }
         input_hash = hash_input(input_payload)
 
-        # Coerce any None scalar values to empty string so agent prompt
-        # builders can safely call str.join() without a TypeError.
+        # Coerce None scalars to empty strings so prompt builders can safely
+        # join nested values without type errors.
         submission_data = _sanitise(submission_data)
 
         logger.info("Agent %r sanitised data, building prompt...", self.agent_name)
         prompt_content = self._build_prompt_context(submission_data, upstream_context)
-        logger.info("Agent %r prompt built successfully (%d chars)", self.agent_name, len(prompt_content))
-
         logger.info(
-            "Agent %r starting run for submission %s", self.agent_name, submission_id
+            "Agent %r prompt built successfully (%d chars)",
+            self.agent_name,
+            len(prompt_content),
+        )
+        logger.info(
+            "Agent %r starting run for submission %s",
+            self.agent_name,
+            submission_id,
         )
 
         output_json: Optional[dict[str, Any]] = None
         run_status = "success"
         coherence = 0.0
+        retry_extra_context: Optional[str] = None
 
         try:
-            raw_output = await self._call_model(prompt_content)
-            output_json = self._parse_json_response(raw_output)
-            coherence = self._compute_coherence(output_json)
+            for attempt in range(1, MAX_ATTEMPTS + 1):
+                try:
+                    raw_output = await self._call_model(
+                        prompt_content,
+                        extra_context=retry_extra_context,
+                    )
+                    output_json = self._parse_json_response(raw_output)
+                    coherence = self._compute_coherence(output_json)
+                    break
+                except ClaudeClientError as exc:
+                    if self._should_retry_client_error(exc) and attempt < MAX_ATTEMPTS:
+                        retry_extra_context = JSON_RETRY_HINT
+                        logger.warning(
+                            "Agent %r JSON formatting attempt %d/%d failed: %s - retrying with stricter JSON hint.",
+                            self.agent_name,
+                            attempt,
+                            MAX_ATTEMPTS,
+                            exc,
+                        )
+                        continue
+                    # The Bedrock client already does retry/backoff internally.
+                    # Retrying the whole agent here only helps when the model
+                    # returned malformed JSON, which is handled above.
+                    raise
+                except ValueError as exc:
+                    if attempt < MAX_ATTEMPTS:
+                        retry_extra_context = JSON_RETRY_HINT
+                        logger.warning(
+                            "Agent %r schema/validation attempt %d/%d failed: %s - retrying.",
+                            self.agent_name,
+                            attempt,
+                            MAX_ATTEMPTS,
+                            exc,
+                        )
+                    else:
+                        raise
+                except Exception:
+                    raise
 
-            # Determine run status from confidence level
             confidence = output_json.get("confidence_level", 1.0)
             if confidence < 0.5:
                 run_status = "clarification_needed"
 
         except Exception as exc:
             logger.error(
-                "Agent %r failed for submission %s: %s",
-                self.agent_name, submission_id, exc,
-                exc_info=True,  # prints full traceback
+                "Agent %r failed for submission %s after %d attempts: %s",
+                self.agent_name,
+                submission_id,
+                MAX_ATTEMPTS,
+                exc,
+                exc_info=True,
             )
             run_status = "failed"
             output_json = {"error": str(exc)}
@@ -130,20 +154,20 @@ class BaseAgent(ABC):
                 input_hash=input_hash,
                 output_json=output_json or {},
                 coherence_score=coherence,
-                confidence_level=output_json.get("confidence_level") if output_json else None,
+                confidence_level=output_json.get("confidence_level")
+                if output_json
+                else None,
                 run_status=run_status,
                 db=db,
             )
 
         logger.info(
             "Agent %r completed with status=%s coherence=%.2f",
-            self.agent_name, run_status, coherence,
+            self.agent_name,
+            run_status,
+            coherence,
         )
         return output_json
-
-    # ------------------------------------------------------------------
-    # Abstract — subclasses implement
-    # ------------------------------------------------------------------
 
     @abstractmethod
     def _build_prompt_context(
@@ -152,28 +176,30 @@ class BaseAgent(ABC):
         upstream_context: Optional[dict[str, Any]],
     ) -> str:
         """
-        Format the submission data into a structured string to send as the
-        user turn of the Claude request.
+        Format the submission data into a structured string for the model.
         """
-
-    # ------------------------------------------------------------------
-    # Internal helpers
-    # ------------------------------------------------------------------
 
     async def _call_model(
         self, user_content: str, extra_context: Optional[str] = None
     ) -> dict[str, Any]:
-        """Delegate to the Claude client."""
+        """Delegate to the shared model client."""
         return await self._client.complete(
             system_prompt=self._system_prompt,
             user_content=user_content,
             extra_system_context=extra_context,
         )
 
+    def _should_retry_client_error(self, exc: ClaudeClientError) -> bool:
+        """Retry only when the model returned malformed structured output."""
+        message = str(exc).lower()
+        return (
+            "malformed json" in message
+            or "expected a json object" in message
+        )
+
     def _parse_json_response(self, raw: dict[str, Any]) -> dict[str, Any]:
         """
         Validate that the raw response dict has the expected structure.
-        Raises ValueError on missing required top-level keys.
         """
         if not isinstance(raw, dict):
             raise ValueError(
@@ -186,7 +212,7 @@ class BaseAgent(ABC):
         return compute_coherence(output, self.agent_name)
 
     def _load_prompt(self, filename: str) -> str:
-        """Load a prompt by filename (convenience pass-through)."""
+        """Load a prompt by filename."""
         return load_prompt(filename)
 
     async def _save_run(
@@ -223,22 +249,19 @@ class BaseAgent(ABC):
 
 def _sanitise(data: dict[str, Any]) -> dict[str, Any]:
     """
-    Recursively replace None values with empty strings so prompt builders
-    can safely call str.join() without a TypeError.
-    Lists are walked element-by-element; nested dicts are sanitised too.
+    Recursively replace None values with empty strings.
     """
     result: dict[str, Any] = {}
-    for k, v in data.items():
-        if v is None:
-            result[k] = ""
-        elif isinstance(v, dict):
-            result[k] = _sanitise(v)
-        elif isinstance(v, list):
-            result[k] = [
-                _sanitise(item) if isinstance(item, dict)
-                else ("" if item is None else item)
-                for item in v
+    for key, value in data.items():
+        if value is None:
+            result[key] = ""
+        elif isinstance(value, dict):
+            result[key] = _sanitise(value)
+        elif isinstance(value, list):
+            result[key] = [
+                _sanitise(item) if isinstance(item, dict) else ("" if item is None else item)
+                for item in value
             ]
         else:
-            result[k] = v
+            result[key] = value
     return result

@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { listSubmissions, runPhase1, runPhase2, runPhase3, runPhase4 } from "@/lib/api";
+import { listSubmissions, runPhase1 } from "@/lib/api";
 import type { SubmissionListItem } from "@/lib/types";
 import { Spinner } from "@/components/ui/spinner";
 import { Alert } from "@/components/ui/alert";
@@ -36,7 +36,6 @@ function DashboardContent() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [running, setRunning] = useState<string | null>(null);
-  const [runningPhase, setRunningPhase] = useState<"phase1" | "phase2" | "phase3" | "phase4" | null>(null);
   const [runError, setRunError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -48,7 +47,6 @@ function DashboardContent() {
 
   async function handleRunPhase1(submissionId: string) {
     setRunning(submissionId);
-    setRunningPhase("phase1");
     setRunError(null);
     try {
       await runPhase1(submissionId);
@@ -58,57 +56,9 @@ function DashboardContent() {
       setRunError(e instanceof Error ? e.message : "Phase 1 run failed.");
     } finally {
       setRunning(null);
-      setRunningPhase(null);
     }
   }
 
-  async function handleRunPhase2(submissionId: string) {
-    setRunning(submissionId);
-    setRunningPhase("phase2");
-    setRunError(null);
-    try {
-      await runPhase2(submissionId);
-      const updated = await listSubmissions();
-      setSubmissions(updated);
-    } catch (e) {
-      setRunError(e instanceof Error ? e.message : "Phase 2 run failed.");
-    } finally {
-      setRunning(null);
-      setRunningPhase(null);
-    }
-  }
-
-  async function handleRunPhase3(submissionId: string) {
-    setRunning(submissionId);
-    setRunningPhase("phase3");
-    setRunError(null);
-    try {
-      await runPhase3(submissionId);
-      const updated = await listSubmissions();
-      setSubmissions(updated);
-    } catch (e) {
-      setRunError(e instanceof Error ? e.message : "Phase 3 run failed.");
-    } finally {
-      setRunning(null);
-      setRunningPhase(null);
-    }
-  }
-
-  async function handleRunPhase4(submissionId: string) {
-    setRunning(submissionId);
-    setRunningPhase("phase4");
-    setRunError(null);
-    try {
-      await runPhase4(submissionId);
-      const updated = await listSubmissions();
-      setSubmissions(updated);
-    } catch (e) {
-      setRunError(e instanceof Error ? e.message : "Phase 4 run failed.");
-    } finally {
-      setRunning(null);
-      setRunningPhase(null);
-    }
-  }
 
   if (loading) {
     return (
@@ -177,89 +127,19 @@ function DashboardContent() {
                       disabled={running === sub.id}
                       className="flex items-center gap-1.5 text-sm bg-brand-500 text-white px-4 py-2 rounded-lg hover:bg-brand-600 disabled:opacity-60 transition-colors"
                     >
-                      {running === sub.id && runningPhase === "phase1" ? (
+                      {running === sub.id ? (
                         <><Spinner className="text-white h-4 w-4" />Running P1...</>
                       ) : "Run Phase 1"}
                     </button>
                   )}
 
-                  {(sub.status === "phase1_complete" ||
-                    sub.status === "mentor_review_required" ||
-                    sub.status === "clarification_needed") && (
-                    <>
-                      <Link
-                        href={`/dossier/${sub.id}`}
-                        className="text-sm border border-brand-500 text-brand-600 px-4 py-2 rounded-lg hover:bg-brand-50 transition-colors"
-                      >
-                        View Dossier
-                      </Link>
-                      <button
-                        onClick={() => handleRunPhase2(sub.id)}
-                        disabled={running === sub.id}
-                        className="flex items-center gap-1.5 text-sm bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 disabled:opacity-60 transition-colors"
-                      >
-                        {running === sub.id && runningPhase === "phase2" ? (
-                          <><Spinner className="text-white h-4 w-4" />Running P2...</>
-                        ) : "Run Phase 2"}
-                      </button>
-                    </>
-                  )}
-
-                  {sub.status === "phase2_complete" && (
-                    <>
-                      <Link
-                        href={`/phase2/${sub.id}`}
-                        className="text-sm border border-gray-300 text-gray-600 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors"
-                      >
-                        View Phase 2
-                      </Link>
-                      <button
-                        onClick={() => handleRunPhase3(sub.id)}
-                        disabled={running === sub.id}
-                        className="flex items-center gap-1.5 text-sm bg-orange-500 text-white px-4 py-2 rounded-lg hover:bg-orange-600 disabled:opacity-60 transition-colors"
-                      >
-                        {running === sub.id && runningPhase === "phase3" ? (
-                          <><Spinner className="text-white h-4 w-4" />Running P3...</>
-                        ) : "Run Phase 3"}
-                      </button>
-                    </>
-                  )}
-
-                  {sub.status === "phase3_complete" && (
-                    <>
-                      <Link
-                        href={`/phase3/${sub.id}`}
-                        className="text-sm border border-orange-400 text-orange-600 px-4 py-2 rounded-lg hover:bg-orange-50 transition-colors"
-                      >
-                        View Phase 3
-                      </Link>
-                      <button
-                        onClick={() => handleRunPhase4(sub.id)}
-                        disabled={running === sub.id}
-                        className="flex items-center gap-1.5 text-sm bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 disabled:opacity-60 transition-colors"
-                      >
-                        {running === sub.id && runningPhase === "phase4" ? (
-                          <><Spinner className="text-white h-4 w-4" />Running P4...</>
-                        ) : "Run Phase 4"}
-                      </button>
-                    </>
-                  )}
-
-                  {sub.status === "phase4_complete" && (
-                    <>
-                      <Link
-                        href={`/phase3/${sub.id}`}
-                        className="text-sm border border-gray-300 text-gray-600 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors"
-                      >
-                        Phase 3
-                      </Link>
-                      <Link
-                        href={`/phase4/${sub.id}`}
-                        className="text-sm bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors"
-                      >
-                        View Phase 4
-                      </Link>
-                    </>
+                  {sub.status !== "submitted" && (
+                    <Link
+                      href={`/startup/${sub.id}`}
+                      className="text-sm bg-brand-500 text-white px-4 py-2 rounded-lg hover:bg-brand-600 transition-colors"
+                    >
+                      View Startup →
+                    </Link>
                   )}
                 </div>
               </div>

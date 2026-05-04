@@ -648,34 +648,16 @@ export function Phase2Card({ output }: Phase2CardProps) {
   return (
     <div className="space-y-8">
       <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <p className="text-xs font-medium uppercase tracking-[0.2em] text-gray-500">
-              Phase 2 Agent Viewer
-            </p>
-            <h2 className="mt-2 text-xl font-semibold text-slate-900">
-              {activeAgent.label} <span className="text-gray-400">|</span> {activeAgent.title}
-            </h2>
-            <p className="mt-1 max-w-2xl text-sm text-gray-600">
-              {activeAgent.summary}
-            </p>
-          </div>
-          <div className="w-full max-w-sm">
-            <label className="mb-1 block text-sm font-medium text-gray-700">
-              Select Agent
-            </label>
-            <select
-              value={selectedAgent}
-              onChange={(e) => setSelectedAgent(e.target.value as AgentKey)}
-              className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-500"
-            >
-              {agentSections.map((section) => (
-                <option key={section.key} value={section.key}>
-                  {section.label} - {section.title}
-                </option>
-              ))}
-            </select>
-          </div>
+        <div>
+          <p className="text-xs font-medium uppercase tracking-[0.2em] text-gray-500">
+            Phase 2 Agent Viewer
+          </p>
+          <h2 className="mt-2 text-xl font-semibold text-slate-900">
+            {activeAgent.label} <span className="text-gray-400">|</span> {activeAgent.title}
+          </h2>
+          <p className="mt-1 max-w-2xl text-sm text-gray-600">
+            {activeAgent.summary}
+          </p>
         </div>
 
         <div className="mt-5 grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-6">

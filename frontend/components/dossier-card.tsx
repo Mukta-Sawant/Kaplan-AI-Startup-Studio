@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+
 import type { Dossier } from "@/lib/types";
 import { EvalScoreBadges, TeamScoreBadge } from "./score-badges";
 import { ReviewFlag } from "./review-flag";
@@ -8,23 +10,41 @@ interface DossierCardProps {
   dossier: Dossier;
 }
 
+type AgentKey = "eval" | "team";
+
+function SectionCard({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
+      <h2 className="text-lg font-semibold mb-4">{title}</h2>
+      {children}
+    </div>
+  );
+}
+
 export function DossierCard({ dossier }: DossierCardProps) {
   const { eval_report, team_report } = dossier;
   const hasCoreReports = Boolean(eval_report && team_report);
+  const [selectedAgent, setSelectedAgent] = useState<AgentKey>("eval");
 
-  return (
-    <div className="space-y-8">
-      <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
-        <h2 className="text-lg font-semibold mb-3">Dossier Summary</h2>
-        <p className="text-gray-700 text-sm leading-relaxed">
-          {dossier.dossier_summary}
-        </p>
-        <p className="text-xs text-gray-400 mt-3">
-          Generated: {new Date(dossier.created_at).toLocaleString()}
-        </p>
-      </div>
+  if (!hasCoreReports) {
+    return (
+      <div className="space-y-8">
+        <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
+          <h2 className="text-lg font-semibold mb-3">Dossier Summary</h2>
+          <p className="text-gray-700 text-sm leading-relaxed">
+            {dossier.dossier_summary}
+          </p>
+          <p className="text-xs text-gray-400 mt-3">
+            Generated: {new Date(dossier.created_at).toLocaleString()}
+          </p>
+        </div>
 
-      {!hasCoreReports && (
         <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6 shadow-sm">
           <h2 className="text-lg font-semibold text-amber-900 mb-2">
             Dossier Format Mismatch
@@ -35,17 +55,19 @@ export function DossierCard({ dossier }: DossierCardProps) {
             after the backend restarts.
           </p>
         </div>
-      )}
+      </div>
+    );
+  }
 
-      <ReviewFlag
-        mentorReviewRequired={dossier.mentor_review_required}
-        clarificationRequest={dossier.clarification_request}
-      />
-
-      {eval_report && (
-        <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
-          <h2 className="text-lg font-semibold mb-4">EVAL Assessment</h2>
-
+  const agentSections = [
+    {
+      key: "eval" as const,
+      label: "EVAL",
+      title: "Idea Evaluation",
+      status: "success",
+      summary: eval_report.summary_recommendation,
+      render: () => (
+        <SectionCard title="EVAL Assessment">
           <EvalScoreBadges
             market={eval_report.market_viability_score}
             feasibility={eval_report.feasibility_score}
@@ -83,13 +105,19 @@ export function DossierCard({ dossier }: DossierCardProps) {
               {Math.round(eval_report.confidence_level * 100)}%
             </span>
           </div>
-        </div>
-      )}
-
-      {team_report && (
-        <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
-          <h2 className="text-lg font-semibold mb-4">TEAM Assessment</h2>
-
+        </SectionCard>
+      ),
+    },
+    {
+      key: "team" as const,
+      label: "TEAM",
+      title: "Team Assessment",
+      status: "success",
+      summary:
+        team_report.identified_gaps[0] ??
+        "Founder-market fit, role alignment, and mentor recommendations.",
+      render: () => (
+        <SectionCard title="TEAM Assessment">
           <TeamScoreBadge score={team_report.founder_market_fit_score} />
 
           {team_report.role_alignment_matrix.length > 0 && (
@@ -183,8 +211,69 @@ export function DossierCard({ dossier }: DossierCardProps) {
               {Math.round(team_report.confidence_level * 100)}%
             </span>
           </div>
+        </SectionCard>
+      ),
+    },
+  ];
+
+  const activeAgent =
+    agentSections.find((section) => section.key === selectedAgent) ?? agentSections[0];
+
+  return (
+    <div className="space-y-8">
+      <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
+        <h2 className="text-lg font-semibold mb-3">Dossier Summary</h2>
+        <p className="text-gray-700 text-sm leading-relaxed">
+          {dossier.dossier_summary}
+        </p>
+        <p className="text-xs text-gray-400 mt-3">
+          Generated: {new Date(dossier.created_at).toLocaleString()}
+        </p>
+      </div>
+
+      <ReviewFlag
+        mentorReviewRequired={dossier.mentor_review_required}
+        clarificationRequest={dossier.clarification_request}
+      />
+
+      <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+        <div>
+          <p className="text-xs font-medium uppercase tracking-[0.2em] text-gray-500">
+            Phase 1 Agent Viewer
+          </p>
+          <h2 className="mt-2 text-xl font-semibold text-slate-900">
+            {activeAgent.label} <span className="text-gray-400">|</span> {activeAgent.title}
+          </h2>
+          <p className="mt-1 max-w-2xl text-sm text-gray-600">
+            {activeAgent.summary}
+          </p>
         </div>
-      )}
+
+        <div className="mt-5 grid grid-cols-2 gap-2 max-w-xl">
+          {agentSections.map((section) => {
+            const isActive = section.key === activeAgent.key;
+            return (
+              <button
+                key={section.key}
+                type="button"
+                onClick={() => setSelectedAgent(section.key)}
+                className={`rounded-xl border px-3 py-3 text-left transition-all ${
+                  isActive
+                    ? "border-brand-500 bg-brand-500 text-white shadow-sm"
+                    : "border-green-200 bg-green-50 text-green-700"
+                }`}
+              >
+                <p className="text-sm font-semibold">{section.label}</p>
+                <p className={`text-xs ${isActive ? "text-white/80" : ""}`}>
+                  {section.status}
+                </p>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {activeAgent.render()}
     </div>
   );
 }

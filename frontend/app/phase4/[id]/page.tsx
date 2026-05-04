@@ -40,6 +40,18 @@ export default function Phase4Page() {
       .finally(() => setLoading(false));
   }, [submissionId]);
 
+  useEffect(() => {
+    if (!output || output.phase4_status === "complete") return;
+
+    const timer = window.setTimeout(() => {
+      getPhase4Output(submissionId)
+        .then(setOutput)
+        .catch((e) => setError(e.message));
+    }, 5000);
+
+    return () => window.clearTimeout(timer);
+  }, [output, submissionId]);
+
   async function handleRerun() {
     setRerunning(true);
     setRerunError(null);
@@ -114,6 +126,11 @@ export default function Phase4Page() {
 
       {rerunError && <Alert variant="error" className="mb-4">{rerunError}</Alert>}
       {rerunDone && <Alert variant="success" className="mb-4">Phase 4 rerun complete — results updated.</Alert>}
+      {output.phase4_status !== "complete" && (
+        <Alert variant="success" className="mb-4">
+          DECKS is ready. VC investor matching is still running in the background and this page will refresh automatically.
+        </Alert>
+      )}
 
       {output.mentor_consultation_required && (
         <Alert variant="error" className="mb-4">
@@ -135,7 +152,11 @@ export default function Phase4Page() {
             const s = (output.agent_statuses ?? {})[agent];
             return (
               <div key={agent} className={`rounded-xl px-3 py-2 text-center text-xs font-medium ${
-                s === "success" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
+                s === "success"
+                  ? "bg-green-100 text-green-700"
+                  : s === "pending"
+                    ? "bg-amber-100 text-amber-700"
+                    : "bg-red-100 text-red-700"
               }`}>
                 {agent.toUpperCase()}
                 <br />
@@ -264,6 +285,13 @@ export default function Phase4Page() {
       )}
 
       {/* VC Tab */}
+      {activeTab === "vc" && !vc && (
+        <div className="bg-white border border-gray-200 rounded-2xl p-8 shadow-sm text-center">
+          <Spinner className="text-indigo-500 h-6 w-6 mx-auto mb-3" />
+          <p className="text-sm text-gray-600">VC investor matching is still running.</p>
+        </div>
+      )}
+
       {activeTab === "vc" && vc && (
         <div className="space-y-6">
           {/* Fundability Scorecard */}

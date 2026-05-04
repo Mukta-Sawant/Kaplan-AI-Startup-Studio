@@ -89,17 +89,44 @@ class Phase4Pipeline:
         Returns:
             Merged Phase 4 output dict ready for PhaseOutput persistence.
         """
-        p2 = phase2_output or {}
+        decks_result, has_retriggered, updated_phase2 = await self.run_decks_stage(
+            submission_id,
+            submission_data,
+            phase1_dossier,
+            phase2_output,
+            phase3_output,
+        )
+        vc_result = await self.run_vc_stage(
+            submission_id,
+            submission_data,
+            phase1_dossier,
+            updated_phase2,
+            phase3_output,
+            decks_result,
+        )
+        logger.info("Phase 4 pipeline complete for submission %s.", submission_id)
+        return self.build_phase4_output(
+            submission_id,
+            decks_result,
+            vc_result,
+            has_retriggered,
+        )
+
+    async def run_decks_stage(
+        self,
+        submission_id: UUID,
+        submission_data: dict[str, Any],
+        phase1_dossier: dict[str, Any] | None = None,
+        phase2_output: dict[str, Any] | None = None,
+        phase3_output: dict[str, Any] | None = None,
+    ) -> tuple[dict[str, Any], bool, dict[str, Any]]:
+        """Run DECKS and any one-time data-gap refresh loop."""
+        p2 = dict(phase2_output or {})
         p3 = phase3_output or {}
 
         logger.info("Phase 4 pipeline starting for submission %s", submission_id)
-
-        # Build the full DECKS context from all prior phases
         decks_context = _build_decks_context(phase1_dossier, p2, p3)
 
-        # -------------------------------------------------------------------
-        # Step 1: Run DECKS
-        # -------------------------------------------------------------------
         logger.info("Phase 4 DECKS agent starting for submission %s", submission_id)
         async with AsyncSessionLocal() as decks_db:
             try:
@@ -112,9 +139,6 @@ class Phase4Pipeline:
                 )
                 decks_result = _fallback_decks()
 
-        # -------------------------------------------------------------------
-        # Step 2: Optional data-gap re-run (one-time only)
-        # -------------------------------------------------------------------
         has_retriggered = False
         critical_gaps = [
             g for g in decks_result.get("data_gaps_identified", [])
@@ -124,19 +148,24 @@ class Phase4Pipeline:
         ]
 
         if critical_gaps:
-            # Take the first critical gap that names a retriggerable agent
             retriggerable = _get_retriggerable_agents()
             for gap in critical_gaps:
                 agent_name = (gap.get("missing_from_agent") or "").lower().strip()
                 if agent_name in retriggerable:
+                    if not _should_refresh_phase2_agent(agent_name, p2):
+                        logger.info(
+                            "Skipping Phase 4 data-gap re-run for %r on submission %s "
+                            "because upstream Phase 2 data already exists.",
+                            agent_name,
+                            submission_id,
+                        )
+                        continue
                     logger.info(
                         "Phase 4 data-gap re-run: re-running %r agent for submission %s",
                         agent_name, submission_id,
                     )
                     has_retriggered = True
                     agent_instance = retriggerable[agent_name]()
-
-                    # Build upstream context for the re-run agent
                     rerun_upstream = {"phase1_dossier": phase1_dossier or {}, **p2}
 
                     async with AsyncSessionLocal() as rerun_db:
@@ -144,7 +173,7 @@ class Phase4Pipeline:
                             refreshed_output = await agent_instance.run(
                                 submission_id, submission_data, rerun_db, rerun_upstream
                             )
-                            # Update the decks context with refreshed data
+                            p2[agent_name] = refreshed_output
                             decks_context[f"phase2_{agent_name}"] = refreshed_output
                             logger.info(
                                 "Data-gap re-run of %r succeeded for submission %s.",
@@ -156,9 +185,9 @@ class Phase4Pipeline:
                                 agent_name, submission_id, exc,
                             )
 
-                    # Re-run DECKS with updated context (one time only)
                     logger.info(
-                        "Re-running DECKS after data-gap refresh for submission %s", submission_id
+                        "Re-running DECKS after data-gap refresh for submission %s",
+                        submission_id,
                     )
                     async with AsyncSessionLocal() as decks_db2:
                         try:
@@ -170,11 +199,22 @@ class Phase4Pipeline:
                                 "DECKS re-run failed for submission %s: %s",
                                 submission_id, exc,
                             )
-                    break  # Only re-trigger once, for the first actionable gap
+                    break
 
-        # -------------------------------------------------------------------
-        # Step 3: Run VC — uses DECKS output + fin + risk + phase1 + cust
-        # -------------------------------------------------------------------
+        return decks_result, has_retriggered, p2
+
+    async def run_vc_stage(
+        self,
+        submission_id: UUID,
+        submission_data: dict[str, Any],
+        phase1_dossier: dict[str, Any] | None,
+        phase2_output: dict[str, Any] | None,
+        phase3_output: dict[str, Any] | None,
+        decks_result: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Run VC using DECKS output and selected upstream context."""
+        p2 = phase2_output or {}
+        p3 = phase3_output or {}
         vc_context = {
             "decks": decks_result,
             "phase2_fin": p2.get("fin") or {},
@@ -186,18 +226,24 @@ class Phase4Pipeline:
         logger.info("Phase 4 VC agent starting for submission %s", submission_id)
         async with AsyncSessionLocal() as vc_db:
             try:
-                vc_result = await self._vc.run(
+                return await self._vc.run(
                     submission_id, submission_data, vc_db, vc_context
                 )
             except Exception as exc:
                 logger.error(
                     "VC agent failed for submission %s: %s", submission_id, exc
                 )
-                vc_result = _fallback_vc()
+                return _fallback_vc()
 
+    def build_phase4_output(
+        self,
+        submission_id: UUID,
+        decks_result: dict[str, Any],
+        vc_result: dict[str, Any],
+        has_retriggered: bool,
+    ) -> dict[str, Any]:
+        """Build the final Phase 4 merged output."""
         mentor_consultation = vc_result.get("mentor_consultation_required", False)
-        logger.info("Phase 4 pipeline complete for submission %s.", submission_id)
-
         return {
             "phase4_status": "complete",
             "submission_id": str(submission_id),
@@ -208,6 +254,49 @@ class Phase4Pipeline:
             "agent_statuses": {
                 "decks": "success" if "error" not in decks_result else "failed",
                 "vc": "success" if "error" not in vc_result else "failed",
+            },
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        }
+
+    def build_phase4_output_without_vc(
+        self,
+        submission_id: UUID,
+        decks_result: dict[str, Any],
+        has_retriggered: bool,
+    ) -> dict[str, Any]:
+        """Build a final Phase 4 payload when DECKS failed and VC was skipped."""
+        vc_result = _skipped_vc()
+        return {
+            "phase4_status": "complete",
+            "submission_id": str(submission_id),
+            "decks": decks_result,
+            "vc": vc_result,
+            "has_retriggered_data_gap": has_retriggered,
+            "mentor_consultation_required": True,
+            "agent_statuses": {
+                "decks": "failed",
+                "vc": "skipped",
+            },
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        }
+
+    def build_decks_partial_output(
+        self,
+        submission_id: UUID,
+        decks_result: dict[str, Any],
+        has_retriggered: bool,
+    ) -> dict[str, Any]:
+        """Build an intermediate Phase 4 payload after DECKS completes."""
+        return {
+            "phase4_status": "decks_complete",
+            "submission_id": str(submission_id),
+            "decks": decks_result,
+            "vc": None,
+            "has_retriggered_data_gap": has_retriggered,
+            "mentor_consultation_required": False,
+            "agent_statuses": {
+                "decks": "success" if "error" not in decks_result else "failed",
+                "vc": "pending",
             },
             "created_at": datetime.now(timezone.utc).isoformat(),
         }
@@ -234,6 +323,22 @@ def _build_decks_context(
         "phase3_channels": p3.get("channels") or {},
         "phase3_mktg": p3.get("mktg") or {},
     }
+
+
+def _should_refresh_phase2_agent(agent_name: str, phase2_output: dict[str, Any]) -> bool:
+    """
+    Refresh a Phase 2 agent only when the upstream payload is actually missing,
+    errored, or too low-confidence to be useful.
+    """
+    payload = phase2_output.get(agent_name) or {}
+    if not payload:
+        return True
+    if isinstance(payload, dict) and payload.get("error"):
+        return True
+    confidence = payload.get("confidence_level")
+    if isinstance(confidence, (int, float)) and confidence < 0.5:
+        return True
+    return False
 
 
 # ---------------------------------------------------------------------------
@@ -284,4 +389,31 @@ def _fallback_vc() -> dict[str, Any]:
         "confidence_level": 0.0,
         "clarification_request": "VC agent failed. Please rerun Phase 4.",
         "error": "VC agent failed",
+    }
+
+
+def _skipped_vc() -> dict[str, Any]:
+    return {
+        "investor_list": [],
+        "outreach_strategy": {
+            "recommended_sequence": ["VC was skipped because DECKS failed."],
+            "pitch_customization_tips": [],
+            "timing_recommendation": "Unavailable because DECKS failed.",
+            "conference_opportunities": [],
+        },
+        "fundability_scorecard": {
+            "overall_score": 1,
+            "team_score": 1,
+            "market_score": 1,
+            "traction_score": 1,
+            "product_score": 1,
+            "financial_score": 1,
+            "score_breakdown": ["VC was skipped because the DECKS narrative was unavailable."],
+            "improvement_recommendations": [],
+        },
+        "mentor_consultation_required": True,
+        "vc_summary": "VC was skipped because DECKS failed. Rerun Phase 4 after deck generation succeeds.",
+        "confidence_level": 0.0,
+        "clarification_request": "DECKS failed, so VC investor matching did not run.",
+        "error": "VC skipped because DECKS failed",
     }

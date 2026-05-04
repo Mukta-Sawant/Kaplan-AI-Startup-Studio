@@ -185,6 +185,28 @@ class Hoster:
         await db.refresh(phase_record)
         return phase_record
 
+    async def finalise_phase4_partial(
+        self,
+        submission_id: UUID,
+        phase4_output: dict[str, Any],
+        db: AsyncSession,
+    ) -> PhaseOutput:
+        """
+        Persist an intermediate Phase 4 output without advancing submission status.
+
+        This is used when DECKS is complete but VC is still running in the background.
+        """
+        phase_record = PhaseOutput(
+            submission_id=submission_id,
+            phase_name="phase4",
+            merged_output=phase4_output,
+            mentor_review_required=False,
+        )
+        db.add(phase_record)
+        await db.commit()
+        await db.refresh(phase_record)
+        return phase_record
+
     async def get_latest_dossier(
         self,
         submission_id: UUID,

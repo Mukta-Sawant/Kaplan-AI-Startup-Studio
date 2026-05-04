@@ -8,11 +8,12 @@ GET  /api/phase4/summary/{submission_id} — fetch a lightweight summary
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.deps import get_db, get_hoster, get_phase4_pipeline
+from models.db import AsyncSessionLocal
 from models.phase_output import PhaseOutput
 from models.submission import Submission
 from orchestrator.hoster import Hoster
@@ -21,9 +22,41 @@ from orchestrator.phase4_pipeline import Phase4Pipeline
 router = APIRouter(tags=["phase4"])
 
 
+async def _finish_phase4_in_background(
+    submission_id: UUID,
+    submission_data: dict[str, object],
+    phase1_dossier: dict[str, object],
+    phase2_output: dict[str, object],
+    phase3_output: dict[str, object],
+    decks_result: dict[str, object],
+    has_retriggered: bool,
+) -> None:
+    """Finish the VC stage in the background and persist the final Phase 4 output."""
+    pipeline = Phase4Pipeline()
+    hoster = Hoster()
+
+    async with AsyncSessionLocal() as db:
+        vc_result = await pipeline.run_vc_stage(
+            submission_id=submission_id,
+            submission_data=submission_data,
+            phase1_dossier=phase1_dossier,
+            phase2_output=phase2_output,
+            phase3_output=phase3_output,
+            decks_result=decks_result,
+        )
+        final_output = pipeline.build_phase4_output(
+            submission_id=submission_id,
+            decks_result=decks_result,
+            vc_result=vc_result,
+            has_retriggered=has_retriggered,
+        )
+        await hoster.finalise_phase4(submission_id, final_output, db)
+
+
 @router.post("/phase4/run/{submission_id}", status_code=status.HTTP_202_ACCEPTED)
 async def run_phase4(
     submission_id: UUID,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     pipeline: Phase4Pipeline = Depends(get_phase4_pipeline),
     hoster: Hoster = Depends(get_hoster),
@@ -95,11 +128,53 @@ async def run_phase4(
     }
 
     try:
-        phase4_output = await pipeline.run(
-            submission_id, submission_data, db,
-            phase1_dossier, phase2_output, phase3_output,
+        decks_result, has_retriggered, updated_phase2_output = await pipeline.run_decks_stage(
+            submission_id=submission_id,
+            submission_data=submission_data,
+            phase1_dossier=phase1_dossier,
+            phase2_output=phase2_output,
+            phase3_output=phase3_output,
         )
-        phase_record = await hoster.finalise_phase4(submission_id, phase4_output, db)
+        if "error" in decks_result:
+            phase4_output = pipeline.build_phase4_output_without_vc(
+                submission_id=submission_id,
+                decks_result=decks_result,
+                has_retriggered=has_retriggered,
+            )
+            phase_record = await hoster.finalise_phase4(
+                submission_id,
+                phase4_output,
+                db,
+            )
+            return {
+                "message": "Phase 4 stopped after DECKS failed. VC investor matching was skipped.",
+                "submission_id": str(submission_id),
+                "phase_output_id": str(phase_record.id),
+                "phase4_status": phase4_output.get("phase4_status", "complete"),
+                "agent_statuses": phase4_output.get("agent_statuses", {}),
+                "has_retriggered_data_gap": phase4_output.get("has_retriggered_data_gap", False),
+                "mentor_consultation_required": phase4_output.get("mentor_consultation_required", True),
+            }
+        phase4_output = pipeline.build_decks_partial_output(
+            submission_id=submission_id,
+            decks_result=decks_result,
+            has_retriggered=has_retriggered,
+        )
+        phase_record = await hoster.finalise_phase4_partial(
+            submission_id,
+            phase4_output,
+            db,
+        )
+        background_tasks.add_task(
+            _finish_phase4_in_background,
+            submission_id,
+            submission_data,
+            phase1_dossier,
+            updated_phase2_output,
+            phase3_output,
+            decks_result,
+            has_retriggered,
+        )
     except Exception as exc:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -107,10 +182,10 @@ async def run_phase4(
         ) from exc
 
     return {
-        "message": "Phase 4 Moving to Funding complete.",
+        "message": "Phase 4 DECKS complete. VC investor matching is continuing in the background.",
         "submission_id": str(submission_id),
         "phase_output_id": str(phase_record.id),
-        "phase4_status": phase4_output.get("phase4_status", "complete"),
+        "phase4_status": phase4_output.get("phase4_status", "decks_complete"),
         "agent_statuses": phase4_output.get("agent_statuses", {}),
         "has_retriggered_data_gap": phase4_output.get("has_retriggered_data_gap", False),
         "mentor_consultation_required": phase4_output.get("mentor_consultation_required", False),
