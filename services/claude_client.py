@@ -28,7 +28,9 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 DEFAULT_MAX_TOKENS = 4096
-DEFAULT_TIMEOUT_SECONDS = 120
+PHASE3_MAX_TOKENS = 8192
+PHASE4_MAX_TOKENS = 16384
+DEFAULT_TIMEOUT_SECONDS = 180
 MAX_RETRIES = 3
 RETRY_BACKOFF_BASE = 2.0  # seconds
 
@@ -257,3 +259,15 @@ def make_phase2_client() -> ClaudeClient:
     """Shared factory for all Phase 2 agents (INTERACT, DISCOVERY, COMP, RISK, GTM, FIN)."""
     model = os.environ.get("CLAUDE_PHASE2_MODEL") or os.environ.get("BEDROCK_MODEL_ID")
     return ClaudeClient(model=model)
+
+
+def make_phase3_client() -> ClaudeClient:
+    """Factory for Phase 3 agents (CUST, CHANNELS, MKTG) — needs larger output window."""
+    model = os.environ.get("CLAUDE_PHASE3_MODEL") or os.environ.get("BEDROCK_MODEL_ID")
+    return ClaudeClient(model=model, max_tokens=PHASE3_MAX_TOKENS)
+
+
+def make_phase4_client() -> ClaudeClient:
+    """Factory for Phase 4 agents (DECKS, VC) — needs larger output window."""
+    model = os.environ.get("CLAUDE_PHASE4_MODEL") or os.environ.get("BEDROCK_MODEL_ID")
+    return ClaudeClient(model=model, max_tokens=PHASE4_MAX_TOKENS)

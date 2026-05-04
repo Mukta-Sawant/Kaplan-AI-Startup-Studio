@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { getPhase2Output } from "@/lib/api";
+import { getPhase2Output, runPhase2 } from "@/lib/api";
 import type { Phase2Output } from "@/lib/types";
 import { Phase2Card } from "@/components/phase2-card";
 import { Spinner } from "@/components/ui/spinner";
@@ -16,6 +16,9 @@ export default function Phase2Page() {
   const [output, setOutput] = useState<Phase2Output | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [rerunning, setRerunning] = useState(false);
+  const [rerunError, setRerunError] = useState<string | null>(null);
+  const [rerunDone, setRerunDone] = useState(false);
 
   useEffect(() => {
     getPhase2Output(submissionId)
@@ -23,6 +26,22 @@ export default function Phase2Page() {
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
   }, [submissionId]);
+
+  async function handleRerun() {
+    setRerunning(true);
+    setRerunError(null);
+    setRerunDone(false);
+    try {
+      await runPhase2(submissionId);
+      const updated = await getPhase2Output(submissionId);
+      setOutput(updated);
+      setRerunDone(true);
+    } catch (e) {
+      setRerunError(e instanceof Error ? e.message : "Phase 2 rerun failed.");
+    } finally {
+      setRerunning(false);
+    }
+  }
 
   if (loading) {
     return (
@@ -62,18 +81,31 @@ export default function Phase2Page() {
           <h1 className="text-2xl font-bold mt-1">Phase 2 — Stage One Analysis</h1>
           <p className="text-xs text-gray-400 mt-0.5">Submission {submissionId}</p>
         </div>
-        <Link
-          href={`/dossier/${submissionId}`}
-          className="text-sm border border-gray-300 text-gray-600 px-4 py-2 rounded-lg hover:bg-gray-100 transition-colors"
-        >
-          View Phase 1 Dossier
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            href={`/dossier/${submissionId}`}
+            className="text-sm border border-gray-300 text-gray-600 px-4 py-2 rounded-lg hover:bg-gray-100 transition-colors"
+          >
+            View Phase 1
+          </Link>
+          <button
+            onClick={handleRerun}
+            disabled={rerunning}
+            className="flex items-center gap-2 text-sm border border-purple-400 text-purple-600 px-4 py-2 rounded-lg hover:bg-purple-50 disabled:opacity-60 transition-colors"
+          >
+            {rerunning && <Spinner className="text-purple-600 h-4 w-4" />}
+            {rerunning ? "Rerunning…" : "↺ Rerun Phase 2"}
+          </button>
+        </div>
       </div>
+
+      {rerunError && <Alert variant="error" className="mb-4">{rerunError}</Alert>}
+      {rerunDone && <Alert variant="success" className="mb-4">Phase 2 rerun complete — results updated.</Alert>}
 
       {failedCount > 0 && (
         <Alert variant="error" className="mb-6">
           {failedCount} agent{failedCount > 1 ? "s" : ""} failed during this run.
-          Fallback data is shown. You can re-run Phase 2 from the dashboard.
+          Fallback data is shown. Use ↺ Rerun Phase 2 to retry.
         </Alert>
       )}
 

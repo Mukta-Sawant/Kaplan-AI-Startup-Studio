@@ -12,6 +12,8 @@ from models.db import AsyncSessionLocal
 from orchestrator.feedback_loop import FeedbackLoop
 from orchestrator.hoster import Hoster
 from orchestrator.phase2_pipeline import Phase2Pipeline
+from orchestrator.phase3_pipeline import Phase3Pipeline
+from orchestrator.phase4_pipeline import Phase4Pipeline
 from orchestrator.pipeline import Phase1Pipeline
 
 
@@ -40,6 +42,16 @@ def get_hoster() -> Hoster:
 def get_phase2_pipeline() -> Phase2Pipeline:
     """Return a shared Phase2Pipeline instance."""
     return Phase2Pipeline()
+
+
+def get_phase3_pipeline() -> Phase3Pipeline:
+    """Return a shared Phase3Pipeline instance."""
+    return Phase3Pipeline()
+
+
+def get_phase4_pipeline() -> Phase4Pipeline:
+    """Return a shared Phase4Pipeline instance."""
+    return Phase4Pipeline()
 
 
 def get_feedback_loop() -> FeedbackLoop:

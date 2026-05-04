@@ -49,6 +49,16 @@ def compute_coherence(output: dict[str, Any], agent_name: str) -> float:
         checks = _gtm_checks(output)
     elif agent_name == "fin":
         checks = _fin_checks(output)
+    elif agent_name == "cust":
+        checks = _cust_checks(output)
+    elif agent_name == "channels":
+        checks = _channels_checks(output)
+    elif agent_name == "mktg":
+        checks = _mktg_checks(output)
+    elif agent_name == "decks":
+        checks = _decks_checks(output)
+    elif agent_name == "vc":
+        checks = _vc_checks(output)
     else:
         logger.warning("Unknown agent_name %r; returning neutral coherence.", agent_name)
         return 0.5
@@ -330,5 +340,185 @@ def _fin_checks(o: dict[str, Any]) -> list[bool]:
 
     summary = o.get("fin_summary", "")
     checks.append(isinstance(summary, str) and len(summary.strip()) >= 10)
+
+    return checks
+
+
+# ---------------------------------------------------------------------------
+# CUST checks
+# ---------------------------------------------------------------------------
+
+def _cust_checks(o: dict[str, Any]) -> list[bool]:
+    checks: list[bool] = []
+
+    required = {
+        "customer_segments", "early_adopter_profile", "outreach_list",
+        "interview_script_suggestions", "cust_summary", "confidence_level",
+    }
+    checks.append(required.issubset(o.keys()))
+
+    segments = o.get("customer_segments", [])
+    checks.append(isinstance(segments, list) and len(segments) >= 1)
+
+    conf = o.get("confidence_level")
+    checks.append(isinstance(conf, float) and 0.0 <= conf <= 1.0)
+
+    early = o.get("early_adopter_profile", "")
+    checks.append(isinstance(early, str) and len(early.strip()) >= 10)
+
+    outreach = o.get("outreach_list", [])
+    checks.append(isinstance(outreach, list))
+
+    questions = o.get("interview_script_suggestions", [])
+    checks.append(isinstance(questions, list) and len(questions) >= 3)
+
+    summary = o.get("cust_summary", "")
+    checks.append(isinstance(summary, str) and len(summary.strip()) >= 10)
+
+    if isinstance(conf, float) and conf < 0.4:
+        checks.append(bool(o.get("clarification_request")))
+    else:
+        checks.append(True)
+
+    return checks
+
+
+# ---------------------------------------------------------------------------
+# CHANNELS checks
+# ---------------------------------------------------------------------------
+
+def _channels_checks(o: dict[str, Any]) -> list[bool]:
+    checks: list[bool] = []
+
+    required = {
+        "partner_map", "partnership_types_breakdown", "outreach_priority_ranking",
+        "partnership_gaps", "channels_summary", "confidence_level",
+    }
+    checks.append(required.issubset(o.keys()))
+
+    partner_map = o.get("partner_map", [])
+    checks.append(isinstance(partner_map, list))
+
+    # No competitor entries allowed
+    has_competitor = any(
+        p.get("is_competitor") is True
+        for p in partner_map
+        if isinstance(p, dict)
+    )
+    checks.append(not has_competitor)
+
+    conf = o.get("confidence_level")
+    checks.append(isinstance(conf, float) and 0.0 <= conf <= 1.0)
+
+    checks.append(isinstance(o.get("outreach_priority_ranking"), list))
+    checks.append(isinstance(o.get("partnership_gaps"), list))
+
+    summary = o.get("channels_summary", "")
+    checks.append(isinstance(summary, str) and len(summary.strip()) >= 10)
+
+    return checks
+
+
+# ---------------------------------------------------------------------------
+# MKTG checks
+# ---------------------------------------------------------------------------
+
+def _mktg_checks(o: dict[str, Any]) -> list[bool]:
+    checks: list[bool] = []
+
+    required = {
+        "marketing_plan", "content_calendar", "messaging_templates",
+        "kpi_targets", "mktg_summary", "confidence_level",
+    }
+    checks.append(required.issubset(o.keys()))
+
+    plan = o.get("marketing_plan", [])
+    checks.append(isinstance(plan, list) and len(plan) >= 1)
+
+    calendar = o.get("content_calendar", [])
+    checks.append(isinstance(calendar, list) and len(calendar) >= 1)
+
+    templates = o.get("messaging_templates", [])
+    checks.append(isinstance(templates, list) and len(templates) >= 1)
+
+    kpis = o.get("kpi_targets", [])
+    checks.append(isinstance(kpis, list) and len(kpis) >= 1)
+
+    conf = o.get("confidence_level")
+    checks.append(isinstance(conf, float) and 0.0 <= conf <= 1.0)
+
+    summary = o.get("mktg_summary", "")
+    checks.append(isinstance(summary, str) and len(summary.strip()) >= 10)
+
+    return checks
+
+
+# ---------------------------------------------------------------------------
+# DECKS checks
+# ---------------------------------------------------------------------------
+
+def _decks_checks(o: dict[str, Any]) -> list[bool]:
+    checks: list[bool] = []
+
+    required = {
+        "slide_outline", "narrative_arc", "data_gaps_identified",
+        "deck_readiness_score", "decks_summary", "confidence_level",
+    }
+    checks.append(required.issubset(o.keys()))
+
+    slides = o.get("slide_outline", [])
+    checks.append(isinstance(slides, list) and len(slides) >= 10)
+
+    score = o.get("deck_readiness_score")
+    checks.append(isinstance(score, (int, float)) and 1 <= score <= 10)
+
+    conf = o.get("confidence_level")
+    checks.append(isinstance(conf, float) and 0.0 <= conf <= 1.0)
+
+    narrative = o.get("narrative_arc", "")
+    checks.append(isinstance(narrative, str) and len(narrative.strip()) >= 10)
+
+    checks.append(isinstance(o.get("data_gaps_identified"), list))
+
+    summary = o.get("decks_summary", "")
+    checks.append(isinstance(summary, str) and len(summary.strip()) >= 10)
+
+    return checks
+
+
+# ---------------------------------------------------------------------------
+# VC checks
+# ---------------------------------------------------------------------------
+
+def _vc_checks(o: dict[str, Any]) -> list[bool]:
+    checks: list[bool] = []
+
+    required = {
+        "investor_list", "outreach_strategy", "fundability_scorecard",
+        "mentor_consultation_required", "vc_summary", "confidence_level",
+    }
+    checks.append(required.issubset(o.keys()))
+
+    investors = o.get("investor_list", [])
+    checks.append(isinstance(investors, list) and len(investors) >= 5)
+
+    conf = o.get("confidence_level")
+    checks.append(isinstance(conf, float) and 0.0 <= conf <= 1.0)
+
+    scorecard = o.get("fundability_scorecard", {})
+    scorecard_keys = {"overall_score", "team_score", "market_score", "traction_score",
+                      "product_score", "financial_score"}
+    checks.append(isinstance(scorecard, dict) and scorecard_keys.issubset(scorecard.keys()))
+
+    overall = scorecard.get("overall_score") if isinstance(scorecard, dict) else None
+    checks.append(isinstance(overall, (int, float)) and 1 <= overall <= 10)
+
+    strategy = o.get("outreach_strategy", {})
+    checks.append(isinstance(strategy, dict) and "recommended_sequence" in strategy)
+
+    summary = o.get("vc_summary", "")
+    checks.append(isinstance(summary, str) and len(summary.strip()) >= 10)
+
+    checks.append(isinstance(o.get("mentor_consultation_required"), bool))
 
     return checks

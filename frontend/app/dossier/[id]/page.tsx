@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { getDossier, runPhase2, submitFeedback } from "@/lib/api";
+import { getDossier, runPhase1, runPhase2, submitFeedback } from "@/lib/api";
 import type { Dossier, FeedbackSource, RerunScope } from "@/lib/types";
 import { DossierCard } from "@/components/dossier-card";
 import { Spinner } from "@/components/ui/spinner";
@@ -26,6 +26,11 @@ export default function DossierPage() {
   const [feedbackSuccess, setFeedbackSuccess] = useState(false);
   const [feedbackError, setFeedbackError] = useState<string | null>(null);
 
+  // Phase 1 rerun
+  const [runningRerun, setRunningRerun] = useState(false);
+  const [rerunError, setRerunError] = useState<string | null>(null);
+  const [rerunDone, setRerunDone] = useState(false);
+
   // Phase 2
   const [runningPhase2, setRunningPhase2] = useState(false);
   const [phase2Error, setPhase2Error] = useState<string | null>(null);
@@ -37,6 +42,22 @@ export default function DossierPage() {
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
   }, [submissionId]);
+
+  async function handleRerunPhase1() {
+    setRunningRerun(true);
+    setRerunError(null);
+    setRerunDone(false);
+    try {
+      await runPhase1(submissionId);
+      const updated = await getDossier(submissionId);
+      setDossier(updated);
+      setRerunDone(true);
+    } catch (e) {
+      setRerunError(e instanceof Error ? e.message : "Phase 1 rerun failed.");
+    } finally {
+      setRunningRerun(false);
+    }
+  }
 
   async function handleRunPhase2() {
     setRunningPhase2(true);
@@ -108,6 +129,18 @@ export default function DossierPage() {
           <p className="text-xs text-gray-400 mt-0.5">
             Submission {submissionId}
           </p>
+        </div>
+        <div className="flex flex-col items-end gap-1">
+          {rerunError && <p className="text-xs text-red-600">{rerunError}</p>}
+          {rerunDone && <p className="text-xs text-green-600">Rerun complete — dossier updated.</p>}
+          <button
+            onClick={handleRerunPhase1}
+            disabled={runningRerun}
+            className="flex items-center gap-2 text-sm border border-brand-400 text-brand-600 px-4 py-2 rounded-lg hover:bg-brand-50 disabled:opacity-60 transition-colors"
+          >
+            {runningRerun && <Spinner className="text-brand-500 h-4 w-4" />}
+            {runningRerun ? "Rerunning Phase 1…" : "↺ Rerun Phase 1"}
+          </button>
         </div>
       </div>
 

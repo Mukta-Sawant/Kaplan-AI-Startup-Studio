@@ -117,6 +117,74 @@ class Hoster:
         await db.refresh(phase_record)
         return phase_record
 
+    async def finalise_phase3(
+        self,
+        submission_id: UUID,
+        phase3_output: dict[str, Any],
+        db: AsyncSession,
+    ) -> PhaseOutput:
+        """
+        Persist the Phase 3 output and update the submission status.
+
+        Args:
+            submission_id:  UUID of the submission.
+            phase3_output:  The merged output dict from Phase3Pipeline.
+            db:             Active async session.
+
+        Returns:
+            The persisted PhaseOutput record.
+        """
+        phase_record = PhaseOutput(
+            submission_id=submission_id,
+            phase_name="phase3",
+            merged_output=phase3_output,
+            mentor_review_required=bool(phase3_output.get("mentor_intervention_required", False)),
+        )
+        db.add(phase_record)
+
+        submission = await self._get_submission(submission_id, db)
+        if submission:
+            submission.status = "phase3_complete"
+            logger.info("Submission %s status -> phase3_complete", submission_id)
+
+        await db.commit()
+        await db.refresh(phase_record)
+        return phase_record
+
+    async def finalise_phase4(
+        self,
+        submission_id: UUID,
+        phase4_output: dict[str, Any],
+        db: AsyncSession,
+    ) -> PhaseOutput:
+        """
+        Persist the Phase 4 output and update the submission status.
+
+        Args:
+            submission_id:  UUID of the submission.
+            phase4_output:  The merged output dict from Phase4Pipeline.
+            db:             Active async session.
+
+        Returns:
+            The persisted PhaseOutput record.
+        """
+        phase_record = PhaseOutput(
+            submission_id=submission_id,
+            phase_name="phase4",
+            merged_output=phase4_output,
+            mentor_review_required=bool(phase4_output.get("mentor_consultation_required", False)),
+        )
+        db.add(phase_record)
+
+        submission = await self._get_submission(submission_id, db)
+        if submission:
+            submission.status = "phase4_complete"
+            logger.info("Submission %s status -> phase4_complete", submission_id)
+
+        await db.commit()
+        await db.refresh(phase_record)
+        return phase_record
+
     async def get_latest_dossier(
         self,
         submission_id: UUID,

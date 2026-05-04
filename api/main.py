@@ -16,6 +16,8 @@ from api.routes.feedback import router as feedback_router
 from api.routes.health import router as health_router
 from api.routes.phase1 import router as phase1_router
 from api.routes.phase2 import router as phase2_router
+from api.routes.phase3 import router as phase3_router
+from api.routes.phase4 import router as phase4_router
 from api.routes.submissions import agent_runs_router, router as submissions_router
 from api.routes.upload import router as upload_router
 from models.db import IS_SQLITE, Base, engine
@@ -82,6 +84,8 @@ app.include_router(submissions_router, prefix=API_PREFIX)
 app.include_router(agent_runs_router, prefix=API_PREFIX)
 app.include_router(phase1_router, prefix=API_PREFIX)
 app.include_router(phase2_router, prefix=API_PREFIX)
+app.include_router(phase3_router, prefix=API_PREFIX)
+app.include_router(phase4_router, prefix=API_PREFIX)
 app.include_router(feedback_router, prefix=API_PREFIX)
 app.include_router(upload_router, prefix=API_PREFIX)
 

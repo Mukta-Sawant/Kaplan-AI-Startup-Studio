@@ -94,10 +94,6 @@ class BaseAgent(ABC):
         prompt_content = self._build_prompt_context(submission_data, upstream_context)
         logger.info("Agent %r prompt built successfully (%d chars)", self.agent_name, len(prompt_content))
 
-        extra = (
-            json.dumps(upstream_context, default=str) if upstream_context else None
-        )
-
         logger.info(
             "Agent %r starting run for submission %s", self.agent_name, submission_id
         )
@@ -107,7 +103,7 @@ class BaseAgent(ABC):
         coherence = 0.0
 
         try:
-            raw_output = await self._call_model(prompt_content, extra)
+            raw_output = await self._call_model(prompt_content)
             output_json = self._parse_json_response(raw_output)
             coherence = self._compute_coherence(output_json)
 

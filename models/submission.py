@@ -19,6 +19,8 @@ class SubmissionStatus(str):
     PHASE1_COMPLETE = "phase1_complete"
     MENTOR_REVIEW_REQUIRED = "mentor_review_required"
     PHASE2_COMPLETE = "phase2_complete"
+    PHASE3_COMPLETE = "phase3_complete"
+    PHASE4_COMPLETE = "phase4_complete"
 
 
 class Submission(Base):
@@ -55,6 +57,8 @@ class Submission(Base):
             "phase1_complete",
             "mentor_review_required",
             "phase2_complete",
+            "phase3_complete",
+            "phase4_complete",
             name="submission_status_enum",
         ),
         nullable=False,

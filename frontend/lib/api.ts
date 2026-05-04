@@ -12,6 +12,10 @@ import type {
   FeedbackResponse,
   Phase2Output,
   Phase2Summary,
+  Phase3Output,
+  Phase3Summary,
+  Phase4Output,
+  Phase4Summary,
   SubmissionCreate,
   SubmissionListItem,
   SubmissionResponse,
@@ -180,6 +184,54 @@ export async function getPhase2Output(submissionId: string): Promise<Phase2Outpu
 
 export async function getPhase2Summary(submissionId: string): Promise<Phase2Summary> {
   return apiFetch<Phase2Summary>(`/phase2/summary/${submissionId}`);
+}
+
+// ---------------------------------------------------------------------------
+// Phase 3 endpoints
+// ---------------------------------------------------------------------------
+
+export async function runPhase3(submissionId: string): Promise<{
+  message: string;
+  submission_id: string;
+  phase_output_id: string;
+  phase3_status: string;
+  agent_statuses: Record<string, string>;
+  mentor_intervention_required: boolean;
+  cust_attempts: number;
+}> {
+  return apiFetch(`/phase3/run/${submissionId}`, { method: "POST" });
+}
+
+export async function getPhase3Output(submissionId: string): Promise<Phase3Output> {
+  return apiFetch<Phase3Output>(`/phase3/output/${submissionId}`);
+}
+
+export async function getPhase3Summary(submissionId: string): Promise<Phase3Summary> {
+  return apiFetch<Phase3Summary>(`/phase3/summary/${submissionId}`);
+}
+
+// ---------------------------------------------------------------------------
+// Phase 4 endpoints
+// ---------------------------------------------------------------------------
+
+export async function runPhase4(submissionId: string): Promise<{
+  message: string;
+  submission_id: string;
+  phase_output_id: string;
+  phase4_status: string;
+  agent_statuses: Record<string, string>;
+  has_retriggered_data_gap: boolean;
+  mentor_consultation_required: boolean;
+}> {
+  return apiFetch(`/phase4/run/${submissionId}`, { method: "POST" });
+}
+
+export async function getPhase4Output(submissionId: string): Promise<Phase4Output> {
+  return apiFetch<Phase4Output>(`/phase4/output/${submissionId}`);
+}
+
+export async function getPhase4Summary(submissionId: string): Promise<Phase4Summary> {
+  return apiFetch<Phase4Summary>(`/phase4/summary/${submissionId}`);
 }
 
 // ---------------------------------------------------------------------------
