@@ -371,6 +371,9 @@ All tests mock the Claude API. No real API calls are made during testing.
 - **Resume upload**: PDF and plain-text resumes up to 5 MB can be uploaded and parsed server-side before submission
 
 ---
+## Acknowledgments
+
+This project was developed from the original concept and direction provided by Prof. Don DeLoach at the Kaplan Institute, Illinois Institute of Technology. I am grateful for his guidance and permission to publish this portfolio version. 
 
 ## Licence
 
